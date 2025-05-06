@@ -1,0 +1,9 @@
+usage:	ytt [options]
+options:
+  add, -a, Add playlists eg.
+    ytt add <YOUTUBE_PLAYLIST_ID_1> <YOUTUBE_PLAYLIST_ID_2> 
+
+  help,    -h, Show this help message
+  config,  -c, Open config file folder
+  refresh, -r, Refresh the playlist cache
+  version, -v, Show version and information

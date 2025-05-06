@@ -15,17 +15,17 @@ import (
 func Model() tea.Model {
 	var rows [100]components.TableEntry
 	for i, t := range rows {
-		t.Title = fmt.Sprintf("Row %d", i)
-		t.Description = fmt.Sprintf("Description of row %d", i)
+		t.Name= fmt.Sprintf("Row %d", i)
+		t.Desc = fmt.Sprintf("Description of row %d", i)
 		rows[i] = t
 	}
 	return model{
-		table: components.NewTable(rows[:], "Playlists"),
+		table: components.NewList(rows[:], "Playlists"),
 	}
 }
 
 type model struct {
-	table components.Table
+	table components.List
 }
 
 func (m model) Init() tea.Cmd {

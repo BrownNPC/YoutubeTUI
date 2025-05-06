@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"ytt/themes"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -21,7 +22,7 @@ type Table struct {
 	Title string
 	Data  []TableEntry // all rows
 
-	Selected   int // selected row index
+	Selected   int // index of selected element (cursor)
 	ViewportH  int // number of rows that fit in view
 	TopVisible int // index of topmost visible row
 }
@@ -36,28 +37,26 @@ func NewTable(data []TableEntry, title string) Table {
 func (m Table) Update(msg tea.Msg) (Table, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		// switch msg.String() {
-		// case "up", "k":
-		// 	if m.Selected >= 1 {
-		// 		m.Selected--
-		// 	}
-		// case "down", "j":
-		// 	if m.Selected < len(m.Data) {
-		// 		m.Selected++
-		// 	}
-		// case "q", "ctrl+c":
-		// 	return m, tea.Quit
-		// }
-		// Adjust scroll to keep cursor visible
-		// if m.Selected < m.TopVisible {
-		// 	m.TopVisible = m.Selected
-		// }
-		// if m.Selected >= m.TopVisible+m.ViewportH {
-		// 	m.TopVisible = m.Selected - m.ViewportH + 2
-		// }
+		var BottomVisible = m.ViewportH + m.TopVisible - 1
+		switch msg.String() {
+		case "up", "k":
+			if m.Selected > 0 {
+				m.Selected--
+				if m.Selected == m.TopVisible && m.TopVisible-1 != -1 {
+					m.TopVisible--
+				}
+			}
+		case "down", "j":
+			if m.Selected < len(m.Data)-1 {
+				m.Selected++
+			}
+			if m.Selected == BottomVisible {
+				m.TopVisible++
+			}
+		}
+		// If selected row moves below viewport, adjust TopVisible
 
 	case tea.WindowSizeMsg:
-		// Reserve one line for status/footer
 		m.ViewportH = (msg.Height * 80) / 100
 	}
 	return m, nil
@@ -65,23 +64,34 @@ func (m Table) Update(msg tea.Msg) (Table, tea.Cmd) {
 
 // View renders the visible rows as a formatted string.
 func (m Table) View() string {
-	var o string
 	t := themes.Active()
-	var style = lipgloss.NewStyle()
+	var style lipgloss.Style
 
-	title := style.Foreground(t.BrightRed).Render(m.Title)
-	bottom := min(m.TopVisible+m.ViewportH, len(m.Data)-1)
-
+	title := style.Foreground(t.BrightRed).Underline(true).Render(m.Title)
+	bottom := min(m.TopVisible+m.ViewportH, len(m.Data))
 	visibleRows := m.Data[m.TopVisible:bottom]
+
+	var output string
 	for i, row := range visibleRows {
-		cursor := "  "
-		if i == m.Selected {
-			cursor = "➤ "
+		i := i + m.TopVisible // not relative
+		isSelected := i == m.Selected
+
+		// Format counter with padding and trailing space
+		counter := fmt.Sprintf("%4d ", i)
+
+		// Base styles
+		counterStyle := style.Foreground(t.BrightBlack)
+		lineStyle := style.Foreground(t.BrightCyan).Bold(true)
+
+		// Apply selection background if needed
+		if isSelected {
+			selectedBg := t.SelectionBackground
+			counterStyle = counterStyle.Background(selectedBg)
+			lineStyle = lineStyle.Background(selectedBg)
 		}
-		o += cursor
 
-		o += style.Foreground(t.BrightCyan).Bold(true).Render(row.Title) + "\n"
+		output += counterStyle.Render(counter) + lineStyle.Render(row.Title) + "\n"
 	}
-	return lipgloss.JoinVertical(0.0, title, o)
 
+	return lipgloss.JoinVertical(0.0, title, output)
 }

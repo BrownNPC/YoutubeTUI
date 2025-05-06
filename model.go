@@ -56,7 +56,7 @@ func (m model) View() string {
 	style.Background(t.Background)
 	s := "Simple Table (q to quit)\n\n"
 
-	return lipgloss.JoinVertical(0.2,
+	return lipgloss.JoinVertical(0.1,
 		style.Render(s),
 		m.table.View(),
 	)

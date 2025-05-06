@@ -6,6 +6,7 @@ import (
 	"sync"
 	"ytt/cli"
 	"ytt/daemon"
+	"ytt/themes"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -14,12 +15,14 @@ func main() {
 	if cli.Run() == false {
 		return
 	}
+	themes.Load()
 	var wg sync.WaitGroup
 	for _, id := range cli.Config.Playlists {
 		wg.Add(1)
 		go fillCache(&wg, id)
 	}
 	wg.Wait()
+	themes.Wait()
 	if _, err := tea.NewProgram(Model(),
 		tea.WithAltScreen(),
 		tea.WithMouseAllMotion(),

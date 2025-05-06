@@ -1,8 +1,10 @@
 package components
 
 import (
-	"fmt"
-	"github.com/charmbracelet/bubbletea"
+	"ytt/themes"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // TableEntry represents a single row in the table.
@@ -12,74 +14,74 @@ type TableEntry struct {
 	Description string
 }
 
-// Table is a simple scrollable table model for Bubble Tea.
-// Data holds the rows, Cursor tracks the selected row,
-// ViewportH is the number of visible rows, and ScrollTop
-// is the index of the first visible row.
+// Table is a scrollable list model for Bubble Tea.
+// Data holds all rows, Cursor is the selected index,
+// ViewportH is visible rows count, and ScrollTop is the first visible index.
 type Table struct {
-	Data      []TableEntry // all rows in the table
-	Cursor    int          // index of the currently selected row
-	ViewportH int          // height of the viewport in rows
-	ScrollTop int          // index of the topmost visible row
+	Title string
+	Data  []TableEntry // all rows
+
+	Selected   int // selected row index
+	ViewportH  int // number of rows that fit in view
+	TopVisible int // index of topmost visible row
 }
 
-// NewTable creates a Table with the provided entries.
-func NewTable(data []TableEntry) Table {
-	return Table{Data: data}
+// NewTable initializes a Table with entries and default viewport height.
+func NewTable(data []TableEntry, title string) Table {
+	return Table{Data: data, ViewportH: 10, Title: title}
 }
 
-// Update handles keyboard and window size messages.
-// It moves the cursor, adjusts scrolling, and quits on q/Ctrl+C.
+// Update handles input and window resize messages.
+// Uses a pointer receiver so mutations persist.
 func (m Table) Update(msg tea.Msg) (Table, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "up", "k":
-			// Move cursor up
-			if m.Cursor > 0 {
-				m.Cursor--
-			}
-		case "down", "j":
-			// Move cursor down
-			if m.Cursor < len(m.Data)-1 {
-				m.Cursor++
-			}
-		case "q", "ctrl+c":
-			// Quit program
-			return m, tea.Quit
-		}
-		// After moving the cursor, adjust scroll to keep the cursor in view
-		if m.Cursor < m.ScrollTop {
-			m.ScrollTop = m.Cursor
-		} else if m.Cursor >= m.ScrollTop+m.ViewportH {
-			m.ScrollTop = m.Cursor - m.ViewportH + 1
-		}
+		// switch msg.String() {
+		// case "up", "k":
+		// 	if m.Selected >= 1 {
+		// 		m.Selected--
+		// 	}
+		// case "down", "j":
+		// 	if m.Selected < len(m.Data) {
+		// 		m.Selected++
+		// 	}
+		// case "q", "ctrl+c":
+		// 	return m, tea.Quit
+		// }
+		// Adjust scroll to keep cursor visible
+		// if m.Selected < m.TopVisible {
+		// 	m.TopVisible = m.Selected
+		// }
+		// if m.Selected >= m.TopVisible+m.ViewportH {
+		// 	m.TopVisible = m.Selected - m.ViewportH + 2
+		// }
 
 	case tea.WindowSizeMsg:
-		// Recalculate viewport height when the window size changes
-		// Reserve one line for any footer/status
-		m.ViewportH = msg.Height - 1
-
+		// Reserve one line for status/footer
+		m.ViewportH = (msg.Height * 80) / 100
 	}
 	return m, nil
 }
 
-// View renders the visible portion of the table as a string.
+// View renders the visible rows as a formatted string.
 func (m Table) View() string {
-	var s string
-	// Calculate end index without going past data length
-	start := m.ScrollTop
-	end := min(start+m.ViewportH, len(m.Data))
+	var o string
+	t := themes.Active()
+	var style = lipgloss.NewStyle()
 
-	// Render each visible row, prefixing the cursor
-	for i := start; i < end; i++ {
+	title := style.Foreground(t.BrightRed).Render(m.Title)
+	bottom := min(m.TopVisible+m.ViewportH, len(m.Data)-1)
+
+	visibleRows := m.Data[m.TopVisible:bottom]
+	for i, row := range visibleRows {
 		cursor := "  "
-		if i == m.Cursor {
-			cursor = "➤ " // highlight selected row
+		if i == m.Selected {
+			cursor = "➤ "
 		}
-		row := m.Data[i]
-		// Combine title and description with padding
-		s += fmt.Sprintf("%s%s - %s\n", cursor, row.Title, row.Description)
+		o += cursor
+
+		o += style.Foreground(t.BrightCyan).Bold(true).Render(row.Title) + "\n"
 	}
-	return s
+	return lipgloss.JoinVertical(0.0, title, o)
+
 }

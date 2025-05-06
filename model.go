@@ -11,12 +11,15 @@ import (
 )
 
 func Model() tea.Model {
-	rows := []string{}
-	for i := 0; i < 100; i++ {
-		rows = append(rows, fmt.Sprintf("Row %03d | Column A | Column B", i))
+	var rows [100]components.TableEntry
+	for i, t := range rows {
+		t.Title = fmt.Sprintf("Row %d", i)
+		t.Description = fmt.Sprintf("Description of row %d", i)
+		rows[i] = t
+
 	}
 	return model{
-		table: components.NewTable(rows),
+		table: components.NewTable(rows[:]),
 	}
 }
 
@@ -31,7 +34,7 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.table, cmd = m.table.Update(msg)
-	
+
 	return m, cmd
 }
 

@@ -16,13 +16,11 @@ type TableEntry struct {
 // // Data holds all rows, Cursor is the selected index,
 // // ViewportH is visible rows count, and ScrollTop is the first visible index.
 type List struct {
-	Title        string
-	Data         []TableEntry
-	ViewHeight   int
-	CurrentPage  int
-	ItemsPerPage int
-	TotalPages   int
-	Cursor       int // which of the visible elements is selected
+	Title      string
+	Data       []TableEntry
+	ViewHeight int
+	Offset     int
+	Cursor     int
 }
 
 // NewTable initializes a Table with entries and default viewport height.
@@ -32,32 +30,53 @@ func NewList(data []TableEntry, title string) List {
 
 func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "up":
+			if m.Cursor > 0 {
+				m.Cursor--
+				if m.Cursor < m.Offset {
+					m.Offset--
+				}
+			}
+		case "down":
+			if m.Cursor < len(m.Data)-1 {
+				m.Cursor++
+				if m.Cursor >= -m.Offset+m.ViewHeight -1{
+					m.Offset++
+				}
+			}
 		}
+
 	}
 	return m, nil
 }
 func (m List) View() string {
 	var o string
 	t := themes.Active()
-
-	pages := len(m.Data) / m.ViewHeight
-
+	end := min(m.Offset+m.ViewHeight, len(m.Data))
+	var visible = m.Data[m.Offset : end-1]
 	base := lipgloss.NewStyle()
-	var visible = m.Data[m.Cursor:m.ViewHeight]
 
 	// Title
 	o += base.Foreground(t.BrightPurple).
 		Background(t.Background).
 		MarginTop(2).MarginBottom(1).
 		Render(m.Title) + "\n"
-	for _, e := range visible {
+	for i, e := range visible {
+		i +=m.Offset
 		// Name
+		if i == m.Cursor{
+			o+="this\n"
+		}
 		o += base.Foreground(t.Foreground).
+			Background(t.Background).
 			Render(e.Name) + "\n"
 		// Description
 		o += " " + base.Foreground(t.BrightGreen).
+			Background(t.Background).
 			MarginBottom(1).
 			Render(e.Desc) + "\n"
 

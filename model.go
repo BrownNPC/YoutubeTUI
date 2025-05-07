@@ -5,6 +5,7 @@ package main
 
 import (
 	"os"
+	"time"
 	"ytt/components"
 	"ytt/daemon"
 	"ytt/themes"
@@ -40,12 +41,16 @@ func (m model) Init() tea.Cmd {
 	if !ok {
 		os.Exit(1)
 	}
-	return nil
+	return tea.Every(time.Millisecond*16,func(t time.Time) tea.Msg {
+		return TickMsg{}
+	})
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
+	case TickMsg:
+		return m,nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":

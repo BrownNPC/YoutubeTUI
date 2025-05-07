@@ -4,32 +4,42 @@ package main
 // coordinates and events.
 
 import (
-	"fmt"
+	"os"
 	"ytt/components"
+	"ytt/daemon"
 	"ytt/themes"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss"
 )
 
 func Model() tea.Model {
-	var rows [100]components.TableEntry
-	for i, t := range rows {
-		t.Name= fmt.Sprintf("Row %d", i)
-		t.Desc = fmt.Sprintf("Description of row %d", i)
-		rows[i] = t
+	var rows []components.TableEntry
+	for _, p := range daemon.Playlists {
+		for _, t := range p.Entries {
+			var r components.TableEntry
+			r.Name = t.Title
+			r.Desc = t.Uploader
+			rows = append(rows, r)
+
+		}
 	}
+
 	return model{
 		table: components.NewList(rows[:], "Playlists"),
 	}
 }
 
 type model struct {
-	table components.List
+	table         components.List
+	width, height int
 }
 
 func (m model) Init() tea.Cmd {
-	themes.Activate(1)
+	ok := themes.Activate("GitHub Dark")
+	if !ok {
+		os.Exit(1)
+	}
 	return nil
 }
 
@@ -38,26 +48,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-
+		case "enter":
+			themes.ActiveID = (themes.ActiveID + 1) % len(themes.Themes)
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
 
 	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
 	}
 	m.table, cmd = m.table.Update(msg)
 
 	return m, cmd
 }
-
 func (m model) View() string {
 	t := themes.Active()
-	var style lipgloss.Style
-	style.Background(t.Background)
-	s := "Simple Table (q to quit)\n\n"
 
-	return lipgloss.JoinVertical(0.1,
-		style.Render(s),
-		m.table.View(),
-	)
+	return lipgloss.NewStyle().
+		Width(m.width).
+		Height(m.height).
+		Background(t.Background).
+		Render(m.table.View())
 }

@@ -1,42 +1,33 @@
 package components
 
 import (
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
+	"ytt/themes"
+
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss"
 )
-
-// TableEntry represents a single row in the table.
-// Title is the main label, and Description provides additional context.
-var docStyle = lipgloss.NewStyle()
 
 type TableEntry struct {
 	Name string
 	Desc string
 }
 
-func (i TableEntry) Title() string       { return i.Name }
-func (i TableEntry) Description() string { return i.Desc }
-func (i TableEntry) FilterValue() string { return i.Name + " " + i.Desc }
-
 // // List is a scrollable list model for Bubble Tea.
 // // Data holds all rows, Cursor is the selected index,
 // // ViewportH is visible rows count, and ScrollTop is the first visible index.
 type List struct {
-	Title string
-	list  list.Model // use table under the hood
+	Title        string
+	Data         []TableEntry
+	ViewHeight   int
+	CurrentPage  int
+	ItemsPerPage int
+	TotalPages   int
+	Cursor       int // which of the visible elements is selected
 }
 
-var breakline = 'ㅤ' //hangul filler used to bypass not having newlines
 // NewTable initializes a Table with entries and default viewport height.
 func NewList(data []TableEntry, title string) List {
-	var items = make([]list.Item, len(data))
-	for i := range data {
-		items[i] = data[i]
-	}
-
-	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
-	return List{Title: title, list: l}
+	return List{Data: data, Title: title, ViewHeight: 20}
 }
 
 func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
@@ -44,16 +35,34 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		}
-	case tea.WindowSizeMsg:
-		h, v := docStyle.GetFrameSize()
-		m.list.SetSize(msg.Width-h, msg.Height-v)
-
 	}
-	m.list, _ = m.list.Update(msg)
 	return m, nil
 }
 func (m List) View() string {
 	var o string
-	o += m.list.View()
-	return o
+	t := themes.Active()
+
+	pages := len(m.Data) / m.ViewHeight
+
+	base := lipgloss.NewStyle()
+	var visible = m.Data[m.Cursor:m.ViewHeight]
+
+	// Title
+	o += base.Foreground(t.BrightPurple).
+		Background(t.Background).
+		MarginTop(2).MarginBottom(1).
+		Render(m.Title) + "\n"
+	for _, e := range visible {
+		// Name
+		o += base.Foreground(t.Foreground).
+			Render(e.Name) + "\n"
+		// Description
+		o += " " + base.Foreground(t.BrightGreen).
+			MarginBottom(1).
+			Render(e.Desc) + "\n"
+
+	}
+
+	return base.PaddingLeft(2).
+		Render(o)
 }

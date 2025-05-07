@@ -36,17 +36,23 @@ type Theme struct {
 }
 
 var Themes []Theme
-var activeTheme Theme
+var ActiveID int // activeTheme index
 
-//go:embed themes.json.gob
+//go:embed themes.gob
 var themesGobbed []byte
 var wg sync.WaitGroup
 
 func Active() Theme {
-	return activeTheme
+	return Themes[ActiveID]
 }
-func Activate(index int) {
-	activeTheme = Themes[index]
+func Activate(name string) (ok bool) {
+	for i, theme := range Themes {
+		if string(theme.Name) == name {
+			ActiveID = i
+			return true
+		}
+	}
+	return false
 }
 
 func Load() {

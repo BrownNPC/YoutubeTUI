@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/bubbletea"
 	"os"
 	"sync"
 	"ytt/cli"

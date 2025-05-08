@@ -4,7 +4,7 @@ import (
 	"time"
 	"ytt/daemon"
 
-	tea "github.com/charmbracelet/bubbletea/v2"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type TickMsg struct{}

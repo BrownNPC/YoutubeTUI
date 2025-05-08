@@ -10,7 +10,7 @@ import (
 	"ytt/daemon"
 	"ytt/themes"
 
-	tea "github.com/charmbracelet/bubbletea/v2"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 

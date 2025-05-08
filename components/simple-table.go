@@ -3,7 +3,6 @@ package components
 import (
 	"ytt/themes"
 
-	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -16,6 +15,7 @@ type TableEntry struct {
 // // Data holds all rows, Cursor is the selected index,
 // // ViewportH is visible rows count, and ScrollTop is the first visible index.
 type List struct {
+	width      int
 	Title      string
 	Data       []TableEntry
 	ViewHeight int
@@ -31,6 +31,7 @@ func NewList(data []TableEntry, title string) List {
 func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		m.width = msg.Width
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -44,7 +45,7 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 		case "down":
 			if m.Cursor < len(m.Data)-1 {
 				m.Cursor++
-				if m.Cursor >= -m.Offset+m.ViewHeight -1{
+				if m.Cursor >= -m.Offset+m.ViewHeight-1 {
 					m.Offset++
 				}
 			}
@@ -54,34 +55,44 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	return m, nil
 }
 func (m List) View() string {
-	var o string
-	t := themes.Active()
-	end := min(m.Offset+m.ViewHeight, len(m.Data))
-	var visible = m.Data[m.Offset : end-1]
-	base := lipgloss.NewStyle()
+	// fields are lipgloss.Color
+	var t themes.Theme = themes.Active()
+
+	base := lipgloss.NewStyle().
+		Background(t.Background).
+		Width(m.width) // set to be screen width
 
 	// Title
-	o += base.Foreground(t.BrightPurple).
-		Background(t.Background).
-		MarginTop(2).MarginBottom(1).
-		Render(m.Title) + "\n"
-	for i, e := range visible {
-		i +=m.Offset
-		// Name
-		if i == m.Cursor{
-			o+="this\n"
-		}
-		o += base.Foreground(t.Foreground).
-			Background(t.Background).
-			Render(e.Name) + "\n"
-		// Description
-		o += " " + base.Foreground(t.BrightGreen).
-			Background(t.Background).
-			MarginBottom(1).
-			Render(e.Desc) + "\n"
+	title := base.
+		Foreground(t.BrightPurple).
+		MarginBottom(1).
+		Render(m.Title)
+	var listContent string
+	for i, e := range m.Data {
+		i += m.Offset
+
+		content := lipgloss.JoinVertical(
+			lipgloss.Bottom,
+			// Name
+			base.
+				Background(t.Blue).
+				PaddingLeft(1).
+				Foreground(t.BrightGreen).
+				Background(t.BrightWhite).
+				Render(e.Name),
+			// Description
+			base.
+				MarginBottom(1).
+				PaddingLeft(2).
+				Render(e.Desc),
+		)
+		listContent += content
 
 	}
-
-	return base.PaddingLeft(2).
-		Render(o)
+	content := lipgloss.JoinVertical(
+		lipgloss.Top,
+		title, listContent,
+	)
+	return base.
+		Render(content)
 }

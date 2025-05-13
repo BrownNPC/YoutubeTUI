@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+
 // Theme matches the JSON schema for a terminal color theme.
 type Theme struct {
 	Name                lipgloss.Color
@@ -42,7 +43,7 @@ var ActiveID int // activeTheme index
 var themesGobbed []byte
 var wg sync.WaitGroup
 
-func Active() Theme {
+func Active() (theme Theme) {
 	return Themes[ActiveID]
 }
 func Activate(name string) (ok bool) {
@@ -54,7 +55,6 @@ func Activate(name string) (ok bool) {
 	}
 	return false
 }
-
 func Load() {
 	wg.Add(1)
 	go load()

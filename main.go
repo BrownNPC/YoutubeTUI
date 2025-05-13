@@ -2,16 +2,16 @@ package main
 
 import (
 	"fmt"
-	"github.com/charmbracelet/bubbletea"
 	"os"
 	"sync"
 	"ytt/cli"
 	"ytt/daemon"
 	"ytt/themes"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
-
 	if cli.Run() == false {
 		return
 	}
@@ -25,7 +25,6 @@ func main() {
 	themes.Wait()
 	if _, err := tea.NewProgram(Model(),
 		tea.WithAltScreen(),
-		// tea.WithMouseCellMotion(),
 	).Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
@@ -40,5 +39,4 @@ func fillCache(wg *sync.WaitGroup, id string) {
 	}
 }
 
-//
 //   yt-dlp -f "bestaudio[ext=webm][acodec=opus]" -g

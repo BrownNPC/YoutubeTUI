@@ -5,11 +5,16 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"ytt/themes"
 
 	"github.com/pelletier/go-toml/v2"
 )
 
 type _config struct {
+	Theme struct{
+		Name string
+		Accent themes.Color
+	}
 	Playlists []string //youtube playlist ids
 }
 

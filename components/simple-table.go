@@ -89,7 +89,7 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 				cmd = m.input.Focus()
 				return m, cmd
 			}
-		case "enter":  // Finish search
+		case "escape":  // Finish search
 			if m.isSearching {
 				m.isSearching = false
 			}

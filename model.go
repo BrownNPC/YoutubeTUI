@@ -22,10 +22,10 @@ const (
 )
 
 func Model() tea.Model {
-	var rows []components.TableEntry
+	var rows []components.ListEntry
 	for _, p := range daemon.Playlists {
 		for _, t := range p.Entries {
-			var r components.TableEntry
+			var r components.ListEntry
 			r.Name = t.Title
 			r.Desc = t.Uploader
 			rows = append(rows, r)

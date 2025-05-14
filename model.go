@@ -4,6 +4,7 @@ package main
 // coordinates and events.
 
 import (
+	"fmt"
 	"time"
 	menu "ytt/globalmenu"
 	"ytt/helpers"
@@ -18,6 +19,7 @@ func Model() tea.Model {
 	return model{
 		playlistView:    views.Playlist(),
 		menuOpened:      true,
+		openAtCenter:    true,
 		changeThemeView: views.ChangeTheme(),
 	}
 }
@@ -26,9 +28,11 @@ type model struct {
 	playlistView    views.PlaylistModel
 	changeThemeView views.ChangeThemeModel
 
-	width, height int
-	view          views.ViewMsg
-	menuOpened    bool
+	width, height    int
+	view             views.ViewMsg
+	menuOpened       bool
+	openAtCenter     bool
+	openatX, openatY int
 }
 
 func (m model) Init() tea.Cmd {
@@ -41,13 +45,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.MouseClickMsg:
+
 	case TickMsg:
 		return m, CmdTick
+	case tea.MouseClickMsg:
+		if msg.Button == tea.MouseRight {
+			m.openAtCenter = false
+			m.openatX = msg.X
+			m.openatY = msg.Y
+			m.menuOpened = !m.menuOpened
+		}
 	case tea.KeyMsg:
 		switch msg.String() {
-		case " ":
+		case "space":
+			m.openAtCenter = true
 			m.menuOpened = !m.menuOpened
+
 		case "esc":
 			m.menuOpened = false
 		case "q", "ctrl+c":
@@ -85,7 +98,12 @@ func (m model) View() (view string) {
 		view = m.changeThemeView.View()
 	}
 	if m.menuOpened { // render menu as an overlay
-		view, _ = helpers.OverlayCenter(view, menu.View(), false)
+		if m.openAtCenter {
+			view, _ = helpers.OverlayCenter(view, menu.View(false), true)
+		} else {
+			view, _ = helpers.Overlay(view, menu.View(true), m.openatY, m.openatX, true)
+		}
 	}
+	view += fmt.Sprintln(m.openatX, m.openatY)
 	return zone.Scan(view)
 }

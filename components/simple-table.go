@@ -15,7 +15,6 @@ import (
 type ListEntry struct {
 	Name       string
 	Desc       string
-	ZoneId     string
 	CustomData any
 }
 

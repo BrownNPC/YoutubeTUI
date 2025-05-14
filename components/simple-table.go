@@ -1,9 +1,11 @@
 package components
 
 import (
+	"strings"
 	"ytt/themes"
 
 	"github.com/charmbracelet/bubbles/paginator"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -13,14 +15,20 @@ type TableEntry struct {
 	Desc string
 }
 
-// // List is a paginated list for Bubble Tea.
+// paginated list
 type List struct {
-	paginator  paginator.Model
-	width      int
-	Title      string
-	Data       []TableEntry
-	ViewHeight int
-	Cursor     int // relative to visible rows
+	input         textinput.Model
+	isSearching   bool // search is focused
+	searchChanged bool
+	SearchQuery   string
+	paginator     paginator.Model
+	width         int
+	Title         string
+	AllData       []TableEntry
+	FilteredData  []TableEntry
+	start, end    int
+	ViewHeight    int
+	Cursor        int // relative to visible rows
 }
 
 // NewTable initializes a Table with entries and default viewport height.
@@ -29,12 +37,29 @@ func NewList(data []TableEntry, title string) List {
 	pag.Type = paginator.Dots
 	pag.ActiveDot = "◉"
 	pag.SetTotalPages(len(data))
-	return List{Data: data, Title: title, paginator: pag}
+	var input = textinput.New()
+	input.KeyMap.CharacterBackward.Unbind()
+	input.KeyMap.CharacterForward.Unbind()
+	return List{AllData: data, Title: title, paginator: pag, input: input}
 }
 
 func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
-	m.paginator.SetTotalPages(len(m.Data))
 	var cmd tea.Cmd
+	if !m.isSearching {
+		m.paginator.SetTotalPages(len(m.AllData))
+		m.FilteredData = m.AllData
+	} else if m.searchChanged {
+		m.searchChanged = false
+		var selectedData []TableEntry
+		for _, e := range m.AllData {
+			if m.SearchQuery != "" && !strings.Contains(strings.ToLower(e.Name+e.Desc), strings.ToLower(m.SearchQuery)) {
+				continue
+			}
+			selectedData = append(selectedData, e)
+		}
+		m.paginator.SetTotalPages(len(selectedData))
+		m.FilteredData = selectedData
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		msg.Height = max(msg.Height, 1)
@@ -42,6 +67,18 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 		m.paginator.PerPage = max((m.ViewHeight*35)/100, 1)
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "/":
+			if !m.isSearching {
+				m.isSearching = true
+				m.input.SetValue("")
+				m.SearchQuery = ""
+				cmd = m.input.Focus()
+				return m, cmd
+			}
+		case "enter":
+			if m.isSearching {
+				m.isSearching = false
+			}
 		case "left", "h":
 			m.paginator.PrevPage()
 		case "right", "l":
@@ -49,16 +86,16 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 		case "up", "k":
 			m.Cursor--
 		case "down", "j":
-			if m.Cursor < len(m.Data)-1 {
+			if m.Cursor < len(m.AllData)-1 {
 				m.Cursor++
 			}
 		}
 	}
 	// Go to next page if end of current page (down)
-	if m.Cursor >= m.paginator.ItemsOnPage(len(m.Data)) {
+	if m.Cursor >= m.paginator.ItemsOnPage(len(m.FilteredData)) {
 		// go to next page
 		if m.paginator.OnLastPage() {
-			m.Cursor = m.paginator.ItemsOnPage(len(m.Data)) - 1
+			m.Cursor = m.paginator.ItemsOnPage(len(m.FilteredData)) - 1
 		} else {
 			m.paginator.NextPage()
 			m.Cursor = 0
@@ -68,12 +105,21 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	if m.Cursor < 0 {
 		if m.paginator.Page > 0 {
 			m.paginator.PrevPage()
-			m.Cursor = m.paginator.ItemsOnPage(len(m.Data)) - 1
+			m.Cursor = m.paginator.ItemsOnPage(len(m.FilteredData)) - 1
 		} else {
 			m.Cursor = 0
 		}
 	}
-	m.Cursor %= len(m.Data) + 1
+	m.Cursor %= len(m.FilteredData) + 1
+	if m.isSearching {
+		m.input, cmd = m.input.Update(msg)
+		if m.input.Value() != m.SearchQuery {
+			m.Cursor = 0
+			m.paginator.Page = 0
+			m.SearchQuery = m.input.Value()
+			m.searchChanged = true
+		}
+	}
 	return m, cmd
 }
 
@@ -89,9 +135,9 @@ func (m List) View() string {
 		Foreground(t.Red).
 		Render(m.Title)
 	var listContent string
-	start, end := m.paginator.GetSliceBounds(len(m.Data))
-	start = min(start, end-1)
-	for i, e := range m.Data[start:end] {
+
+	m.start, m.end = m.paginator.GetSliceBounds(len(m.FilteredData))
+	for i, e := range m.FilteredData[m.start:m.end] {
 		var selected string = " "
 		var nameColor, descColor = accentColor, t.Foreground
 
@@ -111,7 +157,11 @@ func (m List) View() string {
 			Foreground(descColor).
 			Render(e.Desc) + "\n"
 	}
+	var search string
+	if m.isSearching {
+		search = m.input.View() + "\n"
+	}
 	return base.
 		PaddingTop(1).
-		Render(title + "\n" + m.paginator.View() + "\n\n" + listContent)
+		Render(title + "\n" + search + m.paginator.View() + "\n\n" + listContent)
 }

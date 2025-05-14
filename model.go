@@ -14,10 +14,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type view int
+type ViewMsg int
 
 const (
-	ViewPlaylists view = iota
+	ViewPlaylists ViewMsg = iota
 	ViewSettings
 )
 
@@ -40,7 +40,7 @@ func Model() tea.Model {
 type model struct {
 	table         components.List
 	width, height int
-	view          view
+	view          ViewMsg
 }
 
 func (m model) Init() tea.Cmd {
@@ -54,9 +54,12 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
 	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case TickMsg:
+		return m, CmdTick
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "1":
@@ -71,13 +74,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+	case ViewMsg:
+		switch msg {
+		case ViewPlaylists:
+			m.view = ViewPlaylists
+		}
 	}
 	switch m.view {
 	case ViewPlaylists:
 		m.table, cmd = m.table.Update(msg)
+		cmds = append(cmds, cmd)
 	}
 
-	return m, cmd
+	return m, tea.Batch(cmds...)
 }
 func (m model) View() (view string) {
 	t := themes.Active()
@@ -89,6 +98,8 @@ func (m model) View() (view string) {
 			PaddingLeft(2).
 			Background(t.Background).
 			Render(m.table.View())
+	case ViewSettings:
+
 	}
 	return view
 }

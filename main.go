@@ -23,10 +23,12 @@ func main() {
 	}
 	wg.Wait()
 	themes.Wait()
-
 	themes.Activate(cli.Config.ThemeName)
+	themes.Selection=cli.Config.ThemeAccent
+	themes.Accent = cli.Config.ThemeAccent
 	if _, err := tea.NewProgram(Model(),
 		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(),
 	).Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)

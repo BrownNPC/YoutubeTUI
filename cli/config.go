@@ -13,6 +13,7 @@ import (
 type _config struct {
 	ThemeName   string
 	ThemeAccent themes.Color
+	ThemeSelectionColor themes.Color
 	Playlists   []string //youtube playlist ids
 }
 

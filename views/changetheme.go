@@ -10,6 +10,7 @@ import (
 )
 
 func ChangeTheme() ChangeThemeModel {
+	// Themes
 	var rows []components.ListEntry
 	for _, t := range themes.Themes {
 		rows = append(rows, components.ListEntry{
@@ -17,17 +18,56 @@ func ChangeTheme() ChangeThemeModel {
 			Desc: "",
 		})
 	}
-	list := components.NewList(rows[:], "Themes")
+	themelist := components.NewList(rows, "Themes")
+	//Accents
+	rows = []components.ListEntry{
+		components.ListEntry{Name: "ThemeDefault"},
+		components.ListEntry{Name: "Red"},
+		components.ListEntry{Name: "Green"},
+		components.ListEntry{Name: "Blue"},
+		components.ListEntry{Name: "White"},
+		components.ListEntry{Name: "Purple"},
+		components.ListEntry{Name: "Yellow"},
+		components.ListEntry{Name: "Pink"},
+		components.ListEntry{Name: "Cyan"},
+		components.ListEntry{Name: "BrightWhite"},
+		components.ListEntry{Name: "BrightPurple"},
+		components.ListEntry{Name: "BrightRed"},
+		components.ListEntry{Name: "BrightGreen"},
+		components.ListEntry{Name: "BrightBlue"},
+		components.ListEntry{Name: "BrightYellow"},
+		components.ListEntry{Name: "BrightCyan"},
+	}
+
+	accentList := components.NewList(rows, "Accent Colors")
+	selectionColorList := components.NewList(rows, "Selection Colors")
+
+	// blink the currently activew themes
+	themelist.SelectedName = string(themes.Active().Name)
+	accentList.SelectedName = string(themes.Accent)
+	selectionColorList.SelectedName=string(themes.Selection)
+
 	tabcontent := []string{
 		"Themes", "Accent Color", "Selection Color",
 	}
-	return ChangeThemeModel{themeslist: list, tabcontent: tabcontent}
+	return ChangeThemeModel{
+		themeslist:    themelist,
+		tabcontent:    tabcontent,
+		selectedTab:   0,
+		width:         0,
+		height:        0,
+		accentsList:   accentList,
+		selectionList: selectionColorList,
+	}
 }
 
 type ChangeThemeModel struct {
+	themeslist    components.List
+	accentsList   components.List
+	selectionList components.List
+
 	tabcontent    []string
 	selectedTab   int
-	themeslist    components.List
 	width, height int
 }
 
@@ -36,6 +76,9 @@ func (m ChangeThemeModel) Update(msg tea.Msg) (ChangeThemeModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		m.themeslist, cmd = m.themeslist.Update(msg)
+		m.accentsList, cmd = m.accentsList.Update(msg)
+		m.selectionList, cmd = m.selectionList.Update(msg)
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "tab":
@@ -46,19 +89,54 @@ func (m ChangeThemeModel) Update(msg tea.Msg) (ChangeThemeModel, tea.Cmd) {
 				m.selectedTab = len(m.tabcontent) - 1
 			}
 		case "enter":
-			if active, ok := m.themeslist.Hovered(); ok {
-				themes.Activate(active.Name)
-				cli.Config.ThemeName = active.Name
-				cli.Config.Save()
+			switch m.tabcontent[m.selectedTab] {
+			case "Themes":
+				if active, ok := m.themeslist.Hovered(); ok {
+					m.themeslist.SelectedName = active.Name
+					themes.Activate(active.Name)
+					cli.Config.ThemeName = active.Name
+					cli.Config.Save()
+				}
+			case "Accent Color":
+				if active, ok := m.accentsList.Hovered(); ok {
+					m.accentsList.SelectedName = active.Name
+					themes.Accent = themes.Color(active.Name)
+					cli.Config.ThemeAccent = themes.Color(active.Name)
+					cli.Config.Save()
+				}
+			case "Selection Color":
+				if active, ok := m.selectionList.Hovered(); ok {
+					m.selectionList.SelectedName = active.Name
+					themes.Selection = themes.Color(active.Name)
+					cli.Config.ThemeSelectionColor = themes.Color(active.Name)
+					cli.Config.Save()
+				}
 			}
 		}
 	}
-	m.themeslist, cmd = m.themeslist.Update(msg)
+	switch m.tabcontent[m.selectedTab] {
+	case "Themes":
+		m.themeslist, cmd = m.themeslist.Update(msg)
+	case "Accent Color":
+		m.accentsList, cmd = m.accentsList.Update(msg)
+	case "Selection Color":
+		m.selectionList, cmd = m.selectionList.Update(msg)
+	}
 	return m, cmd
 }
 func (m ChangeThemeModel) View() string {
 	var o string
 	t := themes.Active()
+	var visibleList components.List
+	switch m.tabcontent[m.selectedTab] {
+	case "Themes":
+		visibleList = m.themeslist
+	case "Accent Color":
+		visibleList = m.accentsList
+	case "Selection Color":
+		visibleList = m.selectionList
+	}
+
 	var base = lipgloss.NewStyle().
 		Background(t.Background)
 	var tabStyle = base.
@@ -90,7 +168,7 @@ func (m ChangeThemeModel) View() string {
 
 	o += lipgloss.JoinVertical(0,
 		tabContent,
-		listStyle.Render(m.themeslist.View()),
+		listStyle.Render(visibleList.View()),
 	)
 	return base.Render(o)
 }

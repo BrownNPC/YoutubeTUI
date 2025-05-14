@@ -17,13 +17,11 @@ type PlaylistModel struct {
 func Playlist() PlaylistModel {
 	var rows []components.ListEntry
 	for _, p := range daemon.Playlists {
-		for _, t := range p.Entries {
-			var r components.ListEntry
-			r.Name = t.Title
-			r.Desc = t.Uploader
-			r.CustomData = p.ID
-			rows = append(rows, r)
-		}
+		var r components.ListEntry
+		r.Name = p.Title
+		r.Desc = p.Channel
+		r.CustomData = p.ID
+		rows = append(rows, r)
 	}
 	list := components.NewList(rows[:], "Playlists")
 	return PlaylistModel{list: list}

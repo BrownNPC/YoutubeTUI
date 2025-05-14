@@ -2,12 +2,12 @@ package themes
 
 import (
 	"image/color"
-
 )
 
 type Color string
 
 const (
+	ThemeDefault Color = "ThemeDefault"
 	Red   Color = "Red"
 	Green       = "Green"
 	Blue        = "Blue"
@@ -30,14 +30,13 @@ const (
 	BrightCyan   = "BrightCyan"
 )
 
-var ActiveAccent Color
+var Accent Color
 
-func SetAccent(a Color) {
-	ActiveAccent = a
-}
 func AccentColor() color.Color {
-	switch ActiveAccent {
+	switch Accent {
 	default:
+		fallthrough
+	case ThemeDefault:
 		fallthrough
 	case Red:
 		return Active().Red

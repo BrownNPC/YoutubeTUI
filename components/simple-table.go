@@ -32,6 +32,7 @@ type List struct {
 	start, end    int             // Slice bounds for current page
 	ViewHeight    int             // Total available height for rendering
 	Cursor        int             // Current selection position (relative to visible page)
+	SelectedName  string          // name of the selected element, set by consumer, selected elements will blink
 }
 
 func (m List) Hovered() (ListEntry, bool) {
@@ -164,7 +165,8 @@ func (m List) View() string {
 
 	// Render title
 	title := base.
-		Foreground(t.Red).
+		Foreground(themes.AccentColor()).
+		Underline(true).
 		Render(m.Title)
 	var listContent string
 
@@ -193,6 +195,7 @@ func (m List) View() string {
 		// Render name and description
 		listContent += selected + base.
 			Foreground(nameColor).
+			Blink(m.SelectedName == e.Name).
 			Render(e.Name) + "\n"
 		if e.Desc != "" {
 			listContent += selected + base.

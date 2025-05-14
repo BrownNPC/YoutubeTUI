@@ -16,6 +16,7 @@ func Model() tea.Model {
 
 	return model{
 		playlistView:    views.Playlist(),
+		menuOpened: true,
 		changeThemeView: views.ChangeTheme(),
 	}
 }

@@ -6,11 +6,7 @@ import (
 
 var Selection Color
 
-const ThemeDefault Color = "ThemeDefault"
 
-func SetSelection(s Color) {
-	Selection = s
-}
 func SelectionColor() color.Color {
 	switch Selection {
 	default:

@@ -10,13 +10,14 @@ import (
 	"ytt/views"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 )
 
 func Model() tea.Model {
 
 	return model{
 		playlistView:    views.Playlist(),
-		menuOpened: true,
+		menuOpened:      true,
 		changeThemeView: views.ChangeTheme(),
 	}
 }
@@ -40,6 +41,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.MouseClickMsg:
 	case TickMsg:
 		return m, CmdTick
 	case tea.KeyMsg:
@@ -83,7 +85,7 @@ func (m model) View() (view string) {
 		view = m.changeThemeView.View()
 	}
 	if m.menuOpened { // render menu as an overlay
-		view, _ = helpers.OverlayCenter(view, menu.View(), true)
+		view, _ = helpers.OverlayCenter(view, menu.View(), false)
 	}
-	return view
+	return zone.Scan(view)
 }

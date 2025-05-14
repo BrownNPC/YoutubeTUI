@@ -9,9 +9,12 @@ import (
 	"ytt/themes"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 )
 
 func main() {
+	zone.NewGlobal()
+	defer zone.Close()
 	if cli.Run() == false {
 		return
 	}
@@ -24,7 +27,7 @@ func main() {
 	wg.Wait()
 	themes.Wait()
 	themes.Activate(cli.Config.ThemeName)
-	themes.Selection=cli.Config.ThemeAccent
+	themes.Selection = cli.Config.ThemeAccent
 	themes.Accent = cli.Config.ThemeAccent
 	if _, err := tea.NewProgram(Model(),
 		tea.WithAltScreen(),
@@ -40,6 +43,7 @@ func fillCache(wg *sync.WaitGroup, id string) {
 	_, err := daemon.FetchPlaylist(id)
 	if err != nil {
 		fmt.Println(err)
+
 	}
 }
 

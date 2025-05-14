@@ -12,6 +12,7 @@ require (
 	github.com/ebml-go/webm v0.0.0-20221117133942-84fa5245cf70
 	github.com/hraban/opus v0.0.0-20230925203106-0188a62cb302
 	github.com/jfbus/httprs v1.0.1
+	github.com/lrstanley/bubblezone/v2 v2.0.0-alpha.1
 	github.com/mattn/go-runewidth v0.0.16
 	github.com/pelletier/go-toml/v2 v2.2.4
 )

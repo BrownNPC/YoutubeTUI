@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 )
 
 func ChangeTheme() ChangeThemeModel {
@@ -45,27 +46,24 @@ func ChangeTheme() ChangeThemeModel {
 	// blink the currently activew themes
 	themelist.SelectedName = string(themes.Active().Name)
 	accentList.SelectedName = string(themes.Accent)
-	selectionColorList.SelectedName=string(themes.Selection)
+	selectionColorList.SelectedName = string(themes.Selection)
 
 	tabcontent := []string{
 		"Themes", "Accent Color", "Selection Color",
 	}
-	return ChangeThemeModel{
+	m := ChangeThemeModel{
 		themeslist:    themelist,
 		tabcontent:    tabcontent,
-		selectedTab:   0,
-		width:         0,
-		height:        0,
 		accentsList:   accentList,
 		selectionList: selectionColorList,
 	}
+	return m
 }
 
 type ChangeThemeModel struct {
 	themeslist    components.List
 	accentsList   components.List
 	selectionList components.List
-
 	tabcontent    []string
 	selectedTab   int
 	width, height int
@@ -79,6 +77,29 @@ func (m ChangeThemeModel) Update(msg tea.Msg) (ChangeThemeModel, tea.Cmd) {
 		m.themeslist, cmd = m.themeslist.Update(msg)
 		m.accentsList, cmd = m.accentsList.Update(msg)
 		m.selectionList, cmd = m.selectionList.Update(msg)
+	case tea.MouseMsg:
+		switch m.tabcontent[m.selectedTab] {
+		case "Themes":
+			if active, ok := m.themeslist.MouseHovered(msg); ok {
+				if msg.Mouse().Button == tea.MouseLeft {
+
+					m.updateTheme(active)
+				}
+			}
+		case "Accent Color":
+			if active, ok := m.accentsList.MouseHovered(msg); ok {
+				if msg.Mouse().Button == tea.MouseLeft {
+					m.updateAccent(active)
+				}
+			}
+		case "Selection Color":
+			if active, ok := m.selectionList.MouseHovered(msg); ok {
+				if msg.Mouse().Button == tea.MouseLeft {
+					m.updateSelectedColor(active)
+				}
+			}
+		}
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "tab":
@@ -92,24 +113,15 @@ func (m ChangeThemeModel) Update(msg tea.Msg) (ChangeThemeModel, tea.Cmd) {
 			switch m.tabcontent[m.selectedTab] {
 			case "Themes":
 				if active, ok := m.themeslist.Hovered(); ok {
-					m.themeslist.SelectedName = active.Name
-					themes.Activate(active.Name)
-					cli.Config.ThemeName = active.Name
-					cli.Config.Save()
+					m.updateTheme(active)
 				}
 			case "Accent Color":
 				if active, ok := m.accentsList.Hovered(); ok {
-					m.accentsList.SelectedName = active.Name
-					themes.Accent = themes.Color(active.Name)
-					cli.Config.ThemeAccent = themes.Color(active.Name)
-					cli.Config.Save()
+					m.updateAccent(active)
 				}
 			case "Selection Color":
 				if active, ok := m.selectionList.Hovered(); ok {
-					m.selectionList.SelectedName = active.Name
-					themes.Selection = themes.Color(active.Name)
-					cli.Config.ThemeSelectionColor = themes.Color(active.Name)
-					cli.Config.Save()
+					m.updateSelectedColor(active)
 				}
 			}
 		}
@@ -154,6 +166,7 @@ func (m ChangeThemeModel) View() string {
 			content = tabStyle.
 				Render(c)
 		}
+		content = zone.Mark(c, content)
 		tabs = append(tabs, content)
 	}
 	tabContent := lipgloss.JoinHorizontal(0, tabs...)
@@ -165,10 +178,27 @@ func (m ChangeThemeModel) View() string {
 		Height(m.height).
 		PaddingLeft(2).
 		MarginTop(0)
-
 	o += lipgloss.JoinVertical(0,
 		tabContent,
 		listStyle.Render(visibleList.View()),
 	)
 	return base.Render(o)
+}
+func (m *ChangeThemeModel) updateTheme(active components.ListEntry) {
+	m.themeslist.SelectedName = active.Name
+	themes.Activate(active.Name)
+	cli.Config.ThemeName = active.Name
+	cli.Config.Save()
+}
+func (m *ChangeThemeModel) updateAccent(active components.ListEntry) {
+	m.accentsList.SelectedName = active.Name
+	themes.Accent = themes.Color(active.Name)
+	cli.Config.ThemeAccent = themes.Color(active.Name)
+	cli.Config.Save()
+}
+func (m *ChangeThemeModel) updateSelectedColor(active components.ListEntry) {
+	m.selectionList.SelectedName = active.Name
+	themes.Selection = themes.Color(active.Name)
+	cli.Config.ThemeSelectionColor = themes.Color(active.Name)
+	cli.Config.Save()
 }

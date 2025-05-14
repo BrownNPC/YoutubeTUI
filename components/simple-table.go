@@ -8,13 +8,14 @@ import (
 	"github.com/charmbracelet/bubbles/v2/textinput"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 )
 
 // ListEntry represents a single item in the list with name and description
 type ListEntry struct {
-	Name string
-	Desc string
-
+	Name       string
+	Desc       string
+	ZoneId     string
 	CustomData any
 }
 
@@ -35,6 +36,25 @@ type List struct {
 	SelectedName  string          // name of the selected element, set by consumer, selected elements will blink
 }
 
+func (m *List) MouseHovered(msg tea.MouseMsg) (ListEntry, bool) {
+	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))
+	mouse := msg.Mouse()
+	if len(m.FilteredData) == 0 {
+		return ListEntry{}, false
+	}
+	for i, e := range m.FilteredData[start:end] {
+		z := zone.Get(e.Name)
+		if z.IsZero() {
+			break
+		}
+		if mouse.X >= z.StartX && mouse.X <= z.EndX &&
+			mouse.Y >= z.StartY && mouse.Y <= z.EndY {
+			m.Cursor = i
+			return e, true
+		}
+	}
+	return ListEntry{}, false
+}
 func (m List) Hovered() (ListEntry, bool) {
 	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))
 	if len(m.FilteredData) == 0 {
@@ -89,6 +109,14 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 		msg.Height = max(msg.Height, 1)
 		m.ViewHeight = max((msg.Height*80)/100, 1)
 		m.paginator.PerPage = max((m.ViewHeight*35)/100, 1)
+	case tea.MouseWheelMsg:
+		switch msg.Button {
+		case tea.MouseWheelUp:
+			m.paginator.PrevPage()
+		case tea.MouseWheelDown:
+			m.paginator.NextPage()
+		}
+	case tea.MouseMsg:
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -178,10 +206,10 @@ func (m List) View() string {
 	}
 	// Render each item in current page
 	for i, e := range data {
+		zoneId := e.Name // name is truncated later
 		var selected string = " "
-		nameColor, descColor := accentColor, t.Foreground
-
 		// Highlight selected item
+		nameColor, descColor := accentColor, t.Foreground
 		if i == m.Cursor {
 			selected = lipgloss.NewStyle().Foreground(t.CursorColor).Render("│")
 			nameColor = selectionColor
@@ -193,18 +221,21 @@ func (m List) View() string {
 		}
 
 		// Render name and description
-		listContent += selected + base.
+		var element string
+		element += selected + base.
 			Foreground(nameColor).
 			Blink(m.SelectedName == e.Name).
-			Render(e.Name) + "\n"
+			Render(e.Name)
+		element = zone.Mark(zoneId, element) + "\n"
 		if e.Desc != "" {
-			listContent += selected + base.
+			element += selected + base.
 				MarginBottom(1).
 				Foreground(descColor).
 				Render(e.Desc) + "\n"
 		} else {
-			listContent += "\n"
+			element += "\n"
 		}
+		listContent += element
 	}
 
 	// Show search input if active

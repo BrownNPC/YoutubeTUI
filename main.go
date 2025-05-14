@@ -8,7 +8,7 @@ import (
 	"ytt/daemon"
 	"ytt/themes"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
 func main() {
@@ -23,6 +23,8 @@ func main() {
 	}
 	wg.Wait()
 	themes.Wait()
+
+	themes.Activate(cli.Config.ThemeName)
 	if _, err := tea.NewProgram(Model(),
 		tea.WithAltScreen(),
 	).Run(); err != nil {

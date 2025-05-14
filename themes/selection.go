@@ -1,6 +1,8 @@
 package themes
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"image/color"
+)
 
 var Selection Color
 
@@ -9,7 +11,7 @@ const ThemeDefault Color = "ThemeDefault"
 func SetSelection(s Color) {
 	Selection = s
 }
-func SelectionColor() lipgloss.Color {
+func SelectionColor() color.Color {
 	switch Selection {
 	default:
 		fallthrough

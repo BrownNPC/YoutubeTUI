@@ -4,32 +4,42 @@ import (
 	"strings"
 	"ytt/themes"
 
-	"github.com/charmbracelet/bubbles/paginator"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/paginator"
+	"github.com/charmbracelet/bubbles/v2/textinput"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // ListEntry represents a single item in the list with name and description
 type ListEntry struct {
 	Name string
 	Desc string
+
+	CustomData any
 }
 
 // List implements a paginated, searchable list component
 type List struct {
-	input         textinput.Model    // Search input field
-	isSearching   bool               // Whether search input is focused
-	searchChanged bool               // Flag for search filter updates
-	SearchQuery   string             // Current search query text
-	paginator     paginator.Model    // Handles pagination state
-	width         int                // Component width
-	Title         string             // Header title for the list
-	AllData       []ListEntry       // Complete unfiltered dataset
-	FilteredData  []ListEntry       // Data filtered by search query
-	start, end    int                // Slice bounds for current page
-	ViewHeight    int                // Total available height for rendering
-	Cursor        int                // Current selection position (relative to visible page)
+	input         textinput.Model // Search input field
+	isSearching   bool            // Whether search input is focused
+	searchChanged bool            // Flag for search filter updates
+	SearchQuery   string          // Current search query text
+	paginator     paginator.Model // Handles pagination state
+	width         int             // Component width
+	Title         string          // Header title for the list
+	AllData       []ListEntry     // Complete unfiltered dataset
+	FilteredData  []ListEntry     // Data filtered by search query
+	start, end    int             // Slice bounds for current page
+	ViewHeight    int             // Total available height for rendering
+	Cursor        int             // Current selection position (relative to visible page)
+}
+
+func (m List) Hovered() (ListEntry, bool) {
+	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))
+	if len(m.FilteredData) == 0 {
+		return ListEntry{}, false
+	}
+	return m.FilteredData[start:end][m.Cursor], true
 }
 
 // NewList creates a new list component with given data and title
@@ -42,16 +52,16 @@ func NewList(data []ListEntry, title string) List {
 
 	// Configure search input
 	var input = textinput.New()
-	input.KeyMap.CharacterBackward.Unbind()  // Disable text cursor movement
-	input.KeyMap.CharacterForward.Unbind()   // Keep only line-based navigation
-
+	input.KeyMap.CharacterBackward.Unbind() // Disable text cursor movement
+	input.KeyMap.CharacterForward.Unbind()  // Keep only line-based navigation
+	input.VirtualCursor = true
 	return List{AllData: data, Title: title, paginator: pag, input: input}
 }
 
 // Update handles messages and updates component state
 func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	var cmd tea.Cmd
-	
+
 	// Update filtered data when not searching or when search query changes
 	if !m.isSearching {
 		// Show full dataset when not searching
@@ -81,25 +91,25 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "/":  // Start search
-			if !m.isSearching {
-				m.isSearching = true
+		case "/": // Start search
+			m.isSearching = !m.isSearching
+			if m.isSearching {
 				m.input.SetValue("")
 				m.SearchQuery = ""
 				cmd = m.input.Focus()
 				return m, cmd
 			}
-		case "escape":  // Finish search
+		case "esc": // Finish search
 			if m.isSearching {
 				m.isSearching = false
 			}
-		case "left", "h":  // Previous page
+		case "left", "h": // Previous page
 			m.paginator.PrevPage()
-		case "right", "l":  // Next page
+		case "right", "l": // Next page
 			m.paginator.NextPage()
-		case "up", "k":  // Move selection up
+		case "up", "k": // Move selection up
 			m.Cursor--
-		case "down", "j":  // Move selection down
+		case "down", "j": // Move selection down
 			if m.Cursor < len(m.AllData)-1 {
 				m.Cursor++
 			}
@@ -125,17 +135,19 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 			m.Cursor = 0
 		}
 	}
-	m.Cursor %= len(m.FilteredData) + 1  // Ensure cursor stays in valid range
+	m.Cursor %= len(m.FilteredData) + 1 // Ensure cursor stays in valid range
 
 	// Update search input if active
 	if m.isSearching {
 		m.input, cmd = m.input.Update(msg)
 		if m.input.Value() != m.SearchQuery {
-			m.Cursor = 0  // Reset cursor when search changes
-			m.paginator.Page = 0  // Reset to first page
+			m.Cursor = 0         // Reset cursor when search changes
+			m.paginator.Page = 0 // Reset to first page
 			m.SearchQuery = m.input.Value()
 			m.searchChanged = true
+			return m, cmd
 		}
+
 	}
 	return m, cmd
 }
@@ -157,10 +169,13 @@ func (m List) View() string {
 	var listContent string
 
 	// Get current page bounds
-	m.start, m.end = m.paginator.GetSliceBounds(len(m.FilteredData))
-	
+	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))
+	var data = m.FilteredData
+	if len(m.FilteredData) != 0 {
+		data = m.FilteredData[start:end]
+	}
 	// Render each item in current page
-	for i, e := range m.FilteredData[m.start:m.end] {
+	for i, e := range data {
 		var selected string = " "
 		nameColor, descColor := accentColor, t.Foreground
 
@@ -179,15 +194,21 @@ func (m List) View() string {
 		listContent += selected + base.
 			Foreground(nameColor).
 			Render(e.Name) + "\n"
-		listContent += selected + base.
-			MarginBottom(1).
-			Foreground(descColor).
-			Render(e.Desc) + "\n"
+		if e.Desc != "" {
+			listContent += selected + base.
+				MarginBottom(1).
+				Foreground(descColor).
+				Render(e.Desc) + "\n"
+		} else {
+			listContent += "\n"
+		}
 	}
 
 	// Show search input if active
 	var search string
 	if m.isSearching {
+		m.input.Styles.Focused.Text = m.input.Styles.Focused.Text.
+			Foreground(t.Foreground).Background(t.Background)
 		search = m.input.View() + "\n"
 	}
 

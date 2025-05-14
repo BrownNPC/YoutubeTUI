@@ -7,33 +7,37 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/v2"
 )
 
+type ThemeColor string
+func (c ThemeColor) RGBA() (r, g, b, a uint32) {
+	return lipgloss.Color(string(c)).RGBA()
+}
 
 // Theme matches the JSON schema for a terminal color theme.
 type Theme struct {
-	Name                lipgloss.Color
-	Black               lipgloss.Color
-	Red                 lipgloss.Color
-	Green               lipgloss.Color
-	Yellow              lipgloss.Color
-	Blue                lipgloss.Color
-	Purple              lipgloss.Color
-	Cyan                lipgloss.Color
-	White               lipgloss.Color
-	BrightBlack         lipgloss.Color
-	BrightRed           lipgloss.Color
-	BrightGreen         lipgloss.Color
-	BrightYellow        lipgloss.Color
-	BrightBlue          lipgloss.Color
-	BrightPurple        lipgloss.Color
-	BrightCyan          lipgloss.Color
-	BrightWhite         lipgloss.Color
-	Background          lipgloss.Color
-	Foreground          lipgloss.Color
-	CursorColor         lipgloss.Color
-	SelectionBackground lipgloss.Color
+	Name                ThemeColor
+	Black               ThemeColor
+	Red                 ThemeColor
+	Green               ThemeColor
+	Yellow              ThemeColor
+	Blue                ThemeColor
+	Purple              ThemeColor
+	Cyan                ThemeColor
+	White               ThemeColor
+	BrightBlack         ThemeColor
+	BrightRed           ThemeColor
+	BrightGreen         ThemeColor
+	BrightYellow        ThemeColor
+	BrightBlue          ThemeColor
+	BrightPurple        ThemeColor
+	BrightCyan          ThemeColor
+	BrightWhite         ThemeColor
+	Background          ThemeColor
+	Foreground          ThemeColor
+	CursorColor         ThemeColor
+	SelectionBackground ThemeColor
 }
 
 var Themes []Theme

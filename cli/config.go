@@ -11,34 +11,32 @@ import (
 )
 
 type _config struct {
-	Theme struct{
-		Name string
-		Accent themes.Color
-	}
-	Playlists []string //youtube playlist ids
+	ThemeName   string
+	ThemeAccent themes.Color
+	Playlists   []string //youtube playlist ids
 }
 
 func LoadConfig() {
 	file, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE, 0644)
+	defer file.Close()
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
-	defer file.Close()
 	toml.NewDecoder(file).Decode(&Config)
 }
 
 // save changes
 func (c _config) Save() {
 	f, err := os.Create(configFilePath)
+	defer f.Close()
 	if err != nil {
 		fmt.Println(err)
 	}
 	err = toml.NewEncoder(f).Encode(Config)
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
-	f.Close()
 }
 func (c *_config) AddPlaylists(ids ...string) (invalidIds []string) {
 	var playlistIDRegex = regexp.MustCompile(`^PL[A-Za-z0-9_-]{32}$`)

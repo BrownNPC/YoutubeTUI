@@ -1,6 +1,9 @@
 package themes
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"image/color"
+
+)
 
 type Color string
 
@@ -25,7 +28,6 @@ const (
 
 	BrightYellow = "BrightYellow"
 	BrightCyan   = "BrightCyan"
-
 )
 
 var ActiveAccent Color
@@ -33,7 +35,7 @@ var ActiveAccent Color
 func SetAccent(a Color) {
 	ActiveAccent = a
 }
-func AccentColor() lipgloss.Color {
+func AccentColor() color.Color {
 	switch ActiveAccent {
 	default:
 		fallthrough

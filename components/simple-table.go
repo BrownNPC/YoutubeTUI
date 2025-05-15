@@ -25,7 +25,7 @@ type List struct {
 	searchChanged bool            // Flag for search filter updates
 	SearchQuery   string          // Current search query text
 	paginator     paginator.Model // Handles pagination state
-	width         int             // Component width
+	width, height int             // Component width
 	Title         string          // Header title for the list
 	AllData       []ListEntry     // Complete unfiltered dataset
 	FilteredData  []ListEntry     // Data filtered by search query
@@ -79,6 +79,7 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		// Adjust dimensions based on window size
 		m.width = msg.Width
+		m.height = msg.Height
 		msg.Height = max(msg.Height, 1)
 		m.ViewHeight = max((msg.Height*80)/100, 1)
 		m.paginator.PerPage = max((m.ViewHeight*35)/100, 1)

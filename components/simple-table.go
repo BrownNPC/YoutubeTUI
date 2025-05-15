@@ -152,6 +152,8 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	return m, cmd
 }
 
+var base = lipgloss.NewStyle()
+
 // View renders the list component UI
 func (m List) View() string {
 	// Get current theme and colors
@@ -159,7 +161,7 @@ func (m List) View() string {
 	accentColor, selectionColor := themes.AccentColor(), themes.SelectionColor()
 
 	// Base styling
-	base := lipgloss.NewStyle().
+	base = base.
 		Background(t.Background)
 
 	// Render title
@@ -172,7 +174,7 @@ func (m List) View() string {
 	// Get current page bounds
 	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))
 	var data = m.FilteredData
-	if len(m.FilteredData) != 0 {
+	if len(m.FilteredData) > 0 {
 		data = m.FilteredData[start:end]
 	}
 	// Render each item in current page
@@ -187,16 +189,17 @@ func (m List) View() string {
 		}
 
 		// Truncate long names
+		displayName := e.Name
 		if len(e.Name) > 40 {
-			e.Name = e.Name[:40] + "…"
+			displayName = e.Name[:40] + "…"
 		}
 
 		// Render name and description
 		var element string
 		element += selected + base.
 			Foreground(nameColor).
-			Blink(m.SelectedName == e.Name).
-			Render(e.Name)
+			Blink(m.SelectedName == displayName).
+			Render(displayName)
 		element = zone.Mark(zoneId, element) + "\n"
 		if e.Desc != "" {
 			element += selected + base.
@@ -212,8 +215,8 @@ func (m List) View() string {
 	// Show search input if active
 	var search string
 	if m.isSearching {
-		m.input.Styles.Focused.Text = m.input.Styles.Focused.Text.
-			Foreground(t.Foreground).Background(t.Background)
+		// m.input.Styles.Focused.Text = m.input.Styles.Focused.Text.
+		// 	Foreground(t.Foreground).Background(t.Background)
 		search = m.input.View() + "\n"
 	}
 

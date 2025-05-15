@@ -78,10 +78,10 @@ func (m ChangeThemeModel) Update(msg tea.Msg) (ChangeThemeModel, tea.Cmd) {
 		m.themeslist, cmd = m.themeslist.Update(msg)
 		m.accentsList, cmd = m.accentsList.Update(msg)
 		m.selectionList, cmd = m.selectionList.Update(msg)
-	case tea.MouseClickMsg:
+	case tea.MouseMsg:
 		for i, c := range m.tabcontent {
 			z := zone.Get(c)
-			if helpers.ZoneCollision(z, msg) && msg.Button == tea.MouseLeft {
+			if helpers.ZoneCollision(z, msg) && msg.Mouse().Button == tea.MouseLeft {
 				m.selectedTab = i
 			}
 		}
@@ -89,13 +89,13 @@ func (m ChangeThemeModel) Update(msg tea.Msg) (ChangeThemeModel, tea.Cmd) {
 		switch m.tabcontent[m.selectedTab] {
 		case "Themes":
 			if active, ok := m.themeslist.MouseHovered(msg); ok {
-				if msg.Button == tea.MouseLeft {
+				if msg.Mouse().Button == tea.MouseLeft {
 					m.updateTheme(active)
 				}
 			}
 		case "Accent Color":
 			if active, ok := m.accentsList.MouseHovered(msg); ok {
-				if msg.Button == tea.MouseLeft {
+				if msg.Mouse().Button == tea.MouseLeft {
 					m.updateAccent(active)
 				}
 			}

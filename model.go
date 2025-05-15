@@ -51,16 +51,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseClickMsg:
 		if msg.Button == tea.MouseRight {
 			m.openAtCenter = false
+			m.menuOpened = !m.menuOpened
 			m.openatX = msg.X
 			m.openatY = msg.Y
-			m.menuOpened = !m.menuOpened
+		} else if msg.Button == tea.MouseLeft && m.menuOpened {
+			z := zone.Get("menu")
+			if !helpers.ZoneCollision(z, msg) {
+				m.menuOpened = false
+			}
 		}
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "space":
+		case " ":
 			m.openAtCenter = true
 			m.menuOpened = !m.menuOpened
-
 		case "esc":
 			m.menuOpened = false
 		case "q", "ctrl+c":

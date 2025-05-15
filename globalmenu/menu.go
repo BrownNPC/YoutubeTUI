@@ -17,6 +17,8 @@ var m = struct {
 	// key to description
 	Entries       []Entry
 	width, height int
+
+	MouseHoveredOn int // index of the hovered entry, otherwise -1
 }{}
 
 type Entry struct {
@@ -27,6 +29,7 @@ func E(key, desc string) Entry {
 	return Entry{Key: key, Description: desc}
 }
 func init() {
+	m.MouseHoveredOn = -1
 	m.Entries = []Entry{
 		E("p", "Go to playlist picker"),
 		E("t", "Go to theme picker"),
@@ -43,6 +46,14 @@ func Update(msg tea.Msg) (cmd tea.Cmd) {
 				return gotoView(e.Key)
 			}
 		}
+	case tea.MouseMotionMsg:
+		for i, e := range m.Entries {
+			if helpers.ZoneCollision(zone.Get(e.Description), msg) {
+				m.MouseHoveredOn = i
+				return
+			}
+		}
+		m.MouseHoveredOn = -1
 	case tea.KeyMsg: // view changing time!
 		return gotoView(msg.String())
 	}
@@ -72,9 +83,13 @@ func View(click bool) string {
 		if i != len(m.Entries)-1 {
 			newline = "\n"
 		}
-		o += base.
+		textStyle := base.
 			PaddingLeft(1).
-			PaddingRight(1).
+			PaddingRight(1)
+		if i == m.MouseHoveredOn {
+			textStyle = textStyle.Foreground(themes.SelectionColor())
+		}
+		o += textStyle.
 			Render(content) + newline
 	}
 	border := lipgloss.NormalBorder()
@@ -90,5 +105,5 @@ func View(click bool) string {
 		space = base.Render("Right Click")
 	}
 	o, _ = helpers.Overlay(o, space, 0, 1, false)
-	return o
+	return zone.Mark("menu", o)
 }

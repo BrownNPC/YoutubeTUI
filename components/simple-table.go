@@ -5,6 +5,7 @@ import (
 	"ytt/themes"
 
 	"github.com/charmbracelet/bubbles/v2/paginator"
+	"github.com/charmbracelet/bubbles/v2/textinput"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
@@ -19,7 +20,7 @@ type ListEntry struct {
 
 // List implements a paginated, searchable list component
 type List struct {
-	input         TextInput       // Search input field
+	input         textinput.Model // Search input field
 	isSearching   bool            // Whether search input is focused
 	searchChanged bool            // Flag for search filter updates
 	SearchQuery   string          // Current search query text
@@ -32,6 +33,7 @@ type List struct {
 	ViewHeight    int             // Total available height for rendering
 	Cursor        int             // Current selection position (relative to visible page)
 	SelectedName  string          // name of the selected element, set by consumer, selected elements will blink
+
 }
 
 // NewList creates a new list component with given data and title
@@ -43,18 +45,11 @@ func NewList(data []ListEntry, title string) List {
 	pag.SetTotalPages(len(data))
 
 	// Configure search input
-	var input = NewTextinput()
+	var input = textinput.New()
 	input.KeyMap.CharacterBackward.Unbind() // Disable text cursor movement
 	input.KeyMap.CharacterForward.Unbind()  // Keep only line-based navigation
+	input.VirtualCursor = true
 	return List{AllData: data, Title: title, paginator: pag, input: input}
-}
-func validate(s string) bool {
-	if len(s) == 1 {
-		return true
-	} else if s == "backspace" || s == "space" {
-		return true
-	}
-	return false
 }
 
 // Update handles messages and updates component state
@@ -83,6 +78,7 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		// Adjust dimensions based on window size
+		m.width = msg.Width
 		msg.Height = max(msg.Height, 1)
 		m.ViewHeight = max((msg.Height*80)/100, 1)
 		m.paginator.PerPage = max((m.ViewHeight*35)/100, 1)
@@ -96,9 +92,6 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	case tea.MouseMsg:
 
 	case tea.KeyMsg:
-		if validate(msg.String()) {
-			m.input, _ = m.input.Update(msg)
-		}
 		switch msg.String() {
 		case "/": // Start search
 			m.isSearching = !m.isSearching
@@ -122,7 +115,6 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 				m.Cursor++
 			}
 		}
-		return m, cmd
 	}
 
 	// Handle cursor position wrapping between pages
@@ -148,7 +140,7 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 
 	// Update search input if active
 	if m.isSearching {
-		m.input, cmd = m.input.Update(msg)
+		m.input, _ = m.input.Update(msg)
 		if m.input.Value() != m.SearchQuery {
 			m.Cursor = 0         // Reset cursor when search changes
 			m.paginator.Page = 0 // Reset to first page
@@ -219,8 +211,8 @@ func (m List) View() string {
 	// Show search input if active
 	var search string
 	if m.isSearching {
-		// m.input.Styles.Focused.Text = m.input.Styles.Focused.Text.
-		// 	Foreground(t.Foreground).Background(t.Background)
+		m.input.Styles.Focused.Text = m.input.Styles.Focused.Text.
+			Foreground(t.Foreground).Background(t.Background)
 		search = m.input.View() + "\n"
 	}
 

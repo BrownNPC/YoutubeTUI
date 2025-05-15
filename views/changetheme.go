@@ -3,6 +3,7 @@ package views
 import (
 	"ytt/cli"
 	"ytt/components"
+	"ytt/helpers"
 	"ytt/themes"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
@@ -77,18 +78,24 @@ func (m ChangeThemeModel) Update(msg tea.Msg) (ChangeThemeModel, tea.Cmd) {
 		m.themeslist, cmd = m.themeslist.Update(msg)
 		m.accentsList, cmd = m.accentsList.Update(msg)
 		m.selectionList, cmd = m.selectionList.Update(msg)
-	case tea.MouseMsg:
+	case tea.MouseClickMsg:
+		for i, c := range m.tabcontent {
+			z := zone.Get(c)
+			if helpers.ZoneCollision(z, msg) && msg.Button == tea.MouseLeft {
+				m.selectedTab = i
+			}
+		}
+		// List content
 		switch m.tabcontent[m.selectedTab] {
 		case "Themes":
 			if active, ok := m.themeslist.MouseHovered(msg); ok {
-				if msg.Mouse().Button == tea.MouseLeft {
-
+				if msg.Button == tea.MouseLeft {
 					m.updateTheme(active)
 				}
 			}
 		case "Accent Color":
 			if active, ok := m.accentsList.MouseHovered(msg); ok {
-				if msg.Mouse().Button == tea.MouseLeft {
+				if msg.Button == tea.MouseLeft {
 					m.updateAccent(active)
 				}
 			}

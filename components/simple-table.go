@@ -96,9 +96,6 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	case tea.MouseMsg:
 
 	case tea.KeyMsg:
-		if !m.input.Focused() && m.isSearching {
-			panic("Search is not focused when there is no reason for it not to")
-		}
 		if validate(msg.String()) {
 			m.input, _ = m.input.Update(msg)
 		}

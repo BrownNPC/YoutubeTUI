@@ -5,7 +5,6 @@ import (
 	"ytt/themes"
 
 	"github.com/charmbracelet/bubbles/v2/paginator"
-	"github.com/charmbracelet/bubbles/v2/textinput"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
@@ -20,7 +19,7 @@ type ListEntry struct {
 
 // List implements a paginated, searchable list component
 type List struct {
-	input         textinput.Model // Search input field
+	input         TextInput       // Search input field
 	isSearching   bool            // Whether search input is focused
 	searchChanged bool            // Flag for search filter updates
 	SearchQuery   string          // Current search query text
@@ -35,33 +34,6 @@ type List struct {
 	SelectedName  string          // name of the selected element, set by consumer, selected elements will blink
 }
 
-func (m *List) MouseHovered(msg tea.MouseMsg) (ListEntry, bool) {
-	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))
-	mouse := msg.Mouse()
-	if len(m.FilteredData) == 0 {
-		return ListEntry{}, false
-	}
-	for i, e := range m.FilteredData[start:end] {
-		z := zone.Get(e.Name)
-		if z.IsZero() {
-			break
-		}
-		if mouse.X >= z.StartX && mouse.X <= z.EndX &&
-			mouse.Y >= z.StartY && mouse.Y <= z.EndY {
-			m.Cursor = i
-			return e, true
-		}
-	}
-	return ListEntry{}, false
-}
-func (m List) Hovered() (ListEntry, bool) {
-	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))
-	if len(m.FilteredData) == 0 {
-		return ListEntry{}, false
-	}
-	return m.FilteredData[start:end][m.Cursor], true
-}
-
 // NewList creates a new list component with given data and title
 func NewList(data []ListEntry, title string) List {
 	// Configure pagination defaults
@@ -71,17 +43,23 @@ func NewList(data []ListEntry, title string) List {
 	pag.SetTotalPages(len(data))
 
 	// Configure search input
-	var input = textinput.New()
+	var input = NewTextinput()
 	input.KeyMap.CharacterBackward.Unbind() // Disable text cursor movement
 	input.KeyMap.CharacterForward.Unbind()  // Keep only line-based navigation
-	input.VirtualCursor = true
 	return List{AllData: data, Title: title, paginator: pag, input: input}
+}
+func validate(s string) bool {
+	if len(s) == 1 {
+		return true
+	} else if s == "backspace" || s == "space" {
+		return true
+	}
+	return false
 }
 
 // Update handles messages and updates component state
 func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	var cmd tea.Cmd
-
 	// Update filtered data when not searching or when search query changes
 	if !m.isSearching {
 		// Show full dataset when not searching
@@ -118,11 +96,16 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	case tea.MouseMsg:
 
 	case tea.KeyMsg:
+		if !m.input.Focused() && m.isSearching {
+			panic("Search is not focused when there is no reason for it not to")
+		}
+		if validate(msg.String()) {
+			m.input, _ = m.input.Update(msg)
+		}
 		switch msg.String() {
 		case "/": // Start search
 			m.isSearching = !m.isSearching
 			if m.isSearching {
-				m.input.SetValue("")
 				m.SearchQuery = ""
 				cmd = m.input.Focus()
 				return m, cmd
@@ -142,6 +125,7 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 				m.Cursor++
 			}
 		}
+		return m, cmd
 	}
 
 	// Handle cursor position wrapping between pages
@@ -173,9 +157,7 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 			m.paginator.Page = 0 // Reset to first page
 			m.SearchQuery = m.input.Value()
 			m.searchChanged = true
-			return m, cmd
 		}
-
 	}
 	return m, cmd
 }
@@ -240,8 +222,8 @@ func (m List) View() string {
 	// Show search input if active
 	var search string
 	if m.isSearching {
-		m.input.Styles.Focused.Text = m.input.Styles.Focused.Text.
-			Foreground(t.Foreground).Background(t.Background)
+		// m.input.Styles.Focused.Text = m.input.Styles.Focused.Text.
+		// 	Foreground(t.Foreground).Background(t.Background)
 		search = m.input.View() + "\n"
 	}
 
@@ -249,4 +231,30 @@ func (m List) View() string {
 	return base.
 		PaddingTop(1).
 		Render(title + "\n" + search + m.paginator.View() + "\n\n" + listContent)
+}
+func (m *List) MouseHovered(msg tea.MouseMsg) (ListEntry, bool) {
+	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))
+	mouse := msg.Mouse()
+	if len(m.FilteredData) == 0 {
+		return ListEntry{}, false
+	}
+	for i, e := range m.FilteredData[start:end] {
+		z := zone.Get(e.Name)
+		if z.IsZero() {
+			break
+		}
+		if mouse.X >= z.StartX && mouse.X <= z.EndX &&
+			mouse.Y >= z.StartY && mouse.Y <= z.EndY {
+			m.Cursor = i
+			return e, true
+		}
+	}
+	return ListEntry{}, false
+}
+func (m List) Hovered() (ListEntry, bool) {
+	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))
+	if len(m.FilteredData) == 0 {
+		return ListEntry{}, false
+	}
+	return m.FilteredData[start:end][m.Cursor], true
 }

@@ -4,7 +4,6 @@ package main
 // coordinates and events.
 
 import (
-	"fmt"
 	"time"
 	menu "ytt/globalmenu"
 	"ytt/helpers"
@@ -95,12 +94,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 func (m model) View() (view string) {
+	var content string
 	switch m.view {
 	case views.ViewPlaylists:
-		view = m.playlistView.View()
+		content = m.playlistView.View()
 	case views.ViewChangeTheme:
-		view = m.changeThemeView.View()
+		content = m.changeThemeView.View()
 	}
+	view, _ = helpers.Overlay(view, content, 0, 0, true)
 	if m.menuOpened { // render menu as an overlay
 		if m.openAtCenter {
 			view, _ = helpers.OverlayCenter(view, menu.View(false), true)
@@ -108,6 +109,5 @@ func (m model) View() (view string) {
 			view, _ = helpers.Overlay(view, menu.View(true), m.openatY, m.openatX, true)
 		}
 	}
-	view += fmt.Sprintln(m.openatX, m.openatY)
 	return zone.Scan(view)
 }

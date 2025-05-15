@@ -223,6 +223,9 @@ func (m List) View() string {
 	// Combine all components
 	return base.
 		PaddingTop(1).
+		Border(HangulFillerBorder()).
+		BorderBackground(t.Background).
+		BorderForeground(t.Foreground).
 		Render(title + "\n" + search + m.paginator.View() + "\n\n" + listContent)
 }
 func (m *List) MouseHovered(msg tea.MouseMsg) (ListEntry, bool) {

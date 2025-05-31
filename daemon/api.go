@@ -50,6 +50,10 @@ func init() {
 func Track(url string) {
 	currentTrackClose, currentPlayer, currentReader = newPlayerFromUrl(url)
 }
+// play a playlist, starting from this track
+func BeginPlaylist(p Playlist, trackId string) {
+
+}
 
 // return time in 00:00:00 (hours:mins:seconds format)
 func GetTimeStamp() string {

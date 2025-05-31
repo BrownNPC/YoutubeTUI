@@ -6,6 +6,7 @@ type ViewMsg int
 
 const (
 	ViewPlaylists ViewMsg = iota
+	ViewTracks 
 	ViewChangeTheme
 )
 

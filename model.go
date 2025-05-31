@@ -16,10 +16,11 @@ import (
 func Model() tea.Model {
 
 	return model{
+		view:            views.ViewPlaylists,
 		playlistView:    views.Playlist(),
+		changeThemeView: views.ChangeTheme(),
 		menuOpened:      true,
 		openAtCenter:    true,
-		changeThemeView: views.ChangeTheme(),
 	}
 }
 
@@ -44,6 +45,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+		menu.Update(msg)
+		m.playlistView, cmd = m.playlistView.Update(msg)
+		cmd = views.ActiveTracksModel.Update(msg)
+		m.changeThemeView, cmd = m.changeThemeView.Update(msg)
 
 	case TickMsg:
 		return m, CmdTick
@@ -61,7 +68,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.KeyMsg:
 		switch msg.String() {
-		case " ":
+		case " ", "space":
 			m.openAtCenter = true
 			m.menuOpened = !m.menuOpened
 		case "esc":
@@ -70,43 +77,59 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
-	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
-		menu.Update(msg)
-		m.playlistView, _ = m.playlistView.Update(msg)
-		m.changeThemeView, _ = m.changeThemeView.Update(msg)
 	case views.ViewMsg:
 		m.view = msg
 		m.menuOpened = false
 		return m, cmd
 	}
 	if !m.menuOpened {
-		switch m.view {
-		case views.ViewPlaylists:
-			m.playlistView, cmd = m.playlistView.Update(msg)
-		case views.ViewChangeTheme:
-			m.changeThemeView, cmd = m.changeThemeView.Update(msg)
-		}
+		cmd = m.updateViews(msg)
 	} else {
 		cmd = menu.Update(msg)
 	}
 
 	return m, cmd
 }
-func (m model) View() (view string) {
+func (m *model) updateViews(msg tea.Msg) (cmd tea.Cmd) {
+	switch m.view {
+	case views.ViewPlaylists:
+		m.playlistView, cmd = m.playlistView.Update(msg)
+	case views.ViewTracks:
+		cmd = views.ActiveTracksModel.Update(msg)
+	case views.ViewChangeTheme:
+		m.changeThemeView, cmd = m.changeThemeView.Update(msg)
+	}
+	return
+}
+func (m model) visibleView() string {
 	var content string
+
 	switch m.view {
 	case views.ViewPlaylists:
 		content = m.playlistView.View()
 	case views.ViewChangeTheme:
 		content = m.changeThemeView.View()
+	case views.ViewTracks:
+		content = views.ActiveTracksModel.View()
 	}
-	view, _ = helpers.Overlay(view, content, 0, 0, true)
+	return content
+}
+func (m model) View() (view string) {
+	content := m.visibleView()
+	view = content
+	// view, _ = helpers.Overlay(view, content, 0, 0, true)
 	if m.menuOpened { // render menu as an overlay
 		if m.openAtCenter {
-			view, _ = helpers.OverlayCenter(view, menu.View(false), true)
+			z := zone.Get("activeList")
+
+			msg := tea.MouseMotionMsg{X: m.openatX, Y: m.openatY}
+			if helpers.ZoneCollision(z, msg) {
+				m.openatX = z.EndX
+				m.openatY = z.EndY
+			}
+			view, _ = helpers.OverlayCenter(view, menu.View(false), false)
 		} else {
-			view, _ = helpers.Overlay(view, menu.View(true), m.openatY, m.openatX, true)
+			view = helpers.PlaceOverlay(m.openatX, m.openatY, menu.View(true), view)
 		}
 	}
 	return zone.Scan(view)

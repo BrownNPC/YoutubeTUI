@@ -32,6 +32,22 @@ func (m PlaylistModel) Update(msg tea.Msg) (PlaylistModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+	case tea.KeyMsg:
+		if e, ok := m.list.Hovered(); ok {
+			if msg.String() == "enter" {
+				ReloadTracks(e.CustomData.(string))
+				cmd = Goto(ViewTracks)
+				return m, cmd
+			}
+		}
+	case tea.MouseMsg:
+		if e, ok := m.list.MouseHovered(msg); ok {
+			if msg.Mouse().Button == tea.MouseLeft {
+				ReloadTracks(e.CustomData.(string))
+				cmd = Goto(ViewTracks)
+				return m, cmd
+			}
+		}
 	}
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd

@@ -1,11 +1,11 @@
 package components
 
 import (
+	"regexp"
 	"strings"
 	"ytt/themes"
 
 	"github.com/charmbracelet/bubbles/v2/paginator"
-	"github.com/charmbracelet/bubbles/v2/textinput"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
@@ -20,7 +20,6 @@ type ListEntry struct {
 
 // List implements a paginated, searchable list component
 type List struct {
-	input         textinput.Model // Search input field
 	isSearching   bool            // Whether search input is focused
 	searchChanged bool            // Flag for search filter updates
 	SearchQuery   string          // Current search query text
@@ -36,6 +35,8 @@ type List struct {
 
 }
 
+var alphaNum = regexp.MustCompile(`^[a-zA-Z0-9]$`)
+
 // NewList creates a new list component with given data and title
 func NewList(data []ListEntry, title string) List {
 	// Configure pagination defaults
@@ -45,11 +46,7 @@ func NewList(data []ListEntry, title string) List {
 	pag.SetTotalPages(len(data))
 
 	// Configure search input
-	var input = textinput.New()
-	input.KeyMap.CharacterBackward.Unbind() // Disable text cursor movement
-	input.KeyMap.CharacterForward.Unbind()  // Keep only line-based navigation
-	input.VirtualCursor = true
-	return List{AllData: data, Title: title, paginator: pag, input: input}
+	return List{AllData: data, Title: title, paginator: pag}
 }
 
 // Update handles messages and updates component state
@@ -98,7 +95,6 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 			m.isSearching = !m.isSearching
 			if m.isSearching {
 				m.SearchQuery = ""
-				cmd = m.input.Focus()
 				return m, cmd
 			}
 		case "esc": // Finish search
@@ -140,13 +136,17 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	m.Cursor %= len(m.FilteredData) + 1 // Ensure cursor stays in valid range
 
 	// Update search input if active
-	if m.isSearching {
-		m.input, _ = m.input.Update(msg)
-		if m.input.Value() != m.SearchQuery {
-			m.Cursor = 0         // Reset cursor when search changes
-			m.paginator.Page = 0 // Reset to first page
-			m.SearchQuery = m.input.Value()
+	if msg, ok := msg.(tea.KeyMsg); ok && m.isSearching {
+		if len(msg.String()) == 1 && alphaNum.MatchString(msg.String()) {
+			m.SearchQuery += msg.String()
 			m.searchChanged = true
+		}
+		if msg.Key().Code == tea.KeyBackspace {
+			runes := []rune(m.SearchQuery)
+			if len(runes) > 0 {
+				m.SearchQuery = string(runes[:len(runes)-1])
+				m.searchChanged = true
+			}
 		}
 	}
 	return m, cmd
@@ -174,7 +174,7 @@ func (m List) View() string {
 	// Get current page bounds
 	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))
 	var data = m.FilteredData
-	if len(m.FilteredData) > 0 {
+	if len(m.FilteredData) > 0 && start <= end {
 		data = m.FilteredData[start:end]
 	}
 	// Render each item in current page
@@ -217,16 +217,16 @@ func (m List) View() string {
 	if m.isSearching {
 		// m.input.Styles.Focused.Text = m.input.Styles.Focused.Text.
 		// 	Foreground(t.Foreground).Background(t.Background)
-		search = m.input.View() + "\n"
+		search = "> " + m.SearchQuery + "\n"
 	}
-
 	// Combine all components
-	return base.
+	view := base.
 		PaddingTop(1).
 		Border(HangulFillerBorder()).
 		BorderBackground(t.Background).
 		BorderForeground(t.Foreground).
 		Render(title + "\n" + search + m.paginator.View() + "\n\n" + listContent)
+	return zone.Mark("activeList", view)
 }
 func (m *List) MouseHovered(msg tea.MouseMsg) (ListEntry, bool) {
 	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))

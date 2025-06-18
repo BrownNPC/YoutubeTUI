@@ -3,9 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
-	"sync"
+	daemon "ytt/YoutubeDaemon"
 	"ytt/cli"
-	"ytt/daemon"
 	"ytt/themes"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
@@ -19,31 +18,21 @@ func main() {
 		return
 	}
 	themes.Load()
-	var wg sync.WaitGroup
+	var ids []string
 	for _, id := range cli.Config.Playlists {
-		wg.Add(1)
-		go fillCache(&wg, id)
+		ids = append(ids, id)
 	}
-	wg.Wait()
+	daemon.AddPlaylists(ids...)
 	themes.Wait()
 	themes.Activate(cli.Config.ThemeName)
 	themes.Selection = cli.Config.ThemeAccent
 	themes.Accent = cli.Config.ThemeAccent
 	if _, err := tea.NewProgram(Model(),
 		tea.WithAltScreen(),
-		tea.WithMouseCellMotion(),
+		tea.WithMouseAllMotion(),
 	).Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
-	}
-}
-
-func fillCache(wg *sync.WaitGroup, id string) {
-	defer wg.Done()
-	_, err := daemon.FetchPlaylist(id)
-	if err != nil {
-		fmt.Println(err)
-
 	}
 }
 

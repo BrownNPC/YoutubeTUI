@@ -8,6 +8,7 @@ const (
 	ViewPlaylists ViewMsg = iota
 	ViewTracks 
 	ViewChangeTheme
+	ViewErrorLog
 )
 
 func Goto(v ViewMsg) tea.Cmd {

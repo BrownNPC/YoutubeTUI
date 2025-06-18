@@ -1,17 +1,20 @@
 package components
 
 import (
-	"regexp"
 	"strings"
-	"ytt/themes"
 
 	"github.com/charmbracelet/bubbles/v2/paginator"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
+	"ytt/themes"
 )
 
-// ListEntry represents a single item in the list with name and description
+const (
+	maxNameLength = 40
+)
+
+// ListEntry represents a single item in the list
 type ListEntry struct {
 	Name       string
 	Desc       string
@@ -20,66 +23,61 @@ type ListEntry struct {
 
 // List implements a paginated, searchable list component
 type List struct {
-	isSearching   bool            // Whether search input is focused
-	searchChanged bool            // Flag for search filter updates
-	SearchQuery   string          // Current search query text
-	paginator     paginator.Model // Handles pagination state
-	width, height int             // Component width
-	Title         string          // Header title for the list
-	AllData       []ListEntry     // Complete unfiltered dataset
-	FilteredData  []ListEntry     // Data filtered by search query
-	start, end    int             // Slice bounds for current page
-	ViewHeight    int             // Total available height for rendering
-	Cursor        int             // Current selection position (relative to visible page)
-	SelectedName  string          // name of the selected element, set by consumer, selected elements will blink
-
+	isSearching   bool
+	searchChanged bool
+	SearchQuery   string
+	paginator     paginator.Model
+	width, height int
+	Title         string
+	AllData       []ListEntry
+	FilteredData  []ListEntry
+	ViewHeight    int
+	Cursor        int
+	SelectedName  string
 }
 
-var alphaNum = regexp.MustCompile(`^[a-zA-Z0-9]$`)
-
-// NewList creates a new list component with given data and title
+// NewList creates a new list component
 func NewList(data []ListEntry, title string) List {
-	// Configure pagination defaults
-	var pag = paginator.New()
-	pag.Type = paginator.Dots
-	pag.ActiveDot = "◉"
-	pag.SetTotalPages(len(data))
+	p := paginator.New()
+	p.Type = paginator.Dots
+	p.ActiveDot = "◉"
+	p.SetTotalPages(len(data))
 
-	// Configure search input
-	return List{AllData: data, Title: title, paginator: pag}
+	return List{
+		AllData:   data,
+		Title:     title,
+		paginator: p,
+	}
 }
 
 // Update handles messages and updates component state
 func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 	var cmd tea.Cmd
-	// Update filtered data when not searching or when search query changes
+	oldPage := m.paginator.Page
+
+	// Update paginator first
+	m.paginator, cmd = m.paginator.Update(msg)
+	if oldPage != m.paginator.Page {
+		m.Cursor = 0
+	}
+
+	// Update filtered data
 	if !m.isSearching {
-		// Show full dataset when not searching
 		m.paginator.SetTotalPages(len(m.AllData))
 		m.FilteredData = m.AllData
 	} else if m.searchChanged {
 		m.searchChanged = false
-		// Filter data based on search query
-		var selectedData []ListEntry
-		for _, e := range m.AllData {
-			if m.SearchQuery != "" && !strings.Contains(strings.ToLower(e.Name+e.Desc), strings.ToLower(m.SearchQuery)) {
-				continue
-			}
-			selectedData = append(selectedData, e)
-		}
-		m.paginator.SetTotalPages(len(selectedData))
-		m.FilteredData = selectedData
+		m.FilteredData = m.filterData()
+		m.paginator.SetTotalPages(len(m.FilteredData))
+		m.paginator.Page = 0
+		m.Cursor = 0
 	}
 
-	// Handle different message types
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		// Adjust dimensions based on window size
-		m.width = msg.Width
-		m.height = msg.Height
-		msg.Height = max(msg.Height, 1)
-		m.ViewHeight = max((msg.Height*80)/100, 1)
-		m.paginator.PerPage = max((m.ViewHeight*35)/100, 1)
+		m.handleResize(msg)
+	case tea.KeyMsg:
+		m.handleKeyPress(msg)
 	case tea.MouseWheelMsg:
 		switch msg.Button {
 		case tea.MouseWheelUp:
@@ -87,68 +85,8 @@ func (m List) Update(msg tea.Msg) (List, tea.Cmd) {
 		case tea.MouseWheelDown:
 			m.paginator.NextPage()
 		}
-	case tea.MouseMsg:
-
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "/": // Start search
-			m.isSearching = !m.isSearching
-			if m.isSearching {
-				m.SearchQuery = ""
-				return m, cmd
-			}
-		case "esc": // Finish search
-			if m.isSearching {
-				m.isSearching = false
-			}
-		case "left", "h": // Previous page
-			m.paginator.PrevPage()
-		case "right", "l": // Next page
-			m.paginator.NextPage()
-		case "up", "k": // Move selection up
-			m.Cursor--
-		case "down", "j": // Move selection down
-			if m.Cursor < len(m.AllData)-1 {
-				m.Cursor++
-			}
-		}
 	}
-
-	// Handle cursor position wrapping between pages
-	if m.Cursor >= m.paginator.ItemsOnPage(len(m.FilteredData)) {
-		// Move to next page if at end of current page
-		if m.paginator.OnLastPage() {
-			m.Cursor = m.paginator.ItemsOnPage(len(m.FilteredData)) - 1
-		} else {
-			m.paginator.NextPage()
-			m.Cursor = 0
-		}
-	}
-	if m.Cursor < 0 {
-		// Move to previous page if at start of current page
-		if m.paginator.Page > 0 {
-			m.paginator.PrevPage()
-			m.Cursor = m.paginator.ItemsOnPage(len(m.FilteredData)) - 1
-		} else {
-			m.Cursor = 0
-		}
-	}
-	m.Cursor %= len(m.FilteredData) + 1 // Ensure cursor stays in valid range
-
-	// Update search input if active
-	if msg, ok := msg.(tea.KeyMsg); ok && m.isSearching {
-		if len(msg.String()) == 1 && alphaNum.MatchString(msg.String()) {
-			m.SearchQuery += msg.String()
-			m.searchChanged = true
-		}
-		if msg.Key().Code == tea.KeyBackspace {
-			runes := []rune(m.SearchQuery)
-			if len(runes) > 0 {
-				m.SearchQuery = string(runes[:len(runes)-1])
-				m.searchChanged = true
-			}
-		}
-	}
+	m.adjustCursor()
 	return m, cmd
 }
 
@@ -215,8 +153,6 @@ func (m List) View() string {
 	// Show search input if active
 	var search string
 	if m.isSearching {
-		// m.input.Styles.Focused.Text = m.input.Styles.Focused.Text.
-		// 	Foreground(t.Foreground).Background(t.Background)
 		search = "> " + m.SearchQuery + "\n"
 	}
 	// Combine all components
@@ -228,29 +164,174 @@ func (m List) View() string {
 		Render(title + "\n" + search + m.paginator.View() + "\n\n" + listContent)
 	return zone.Mark("activeList", view)
 }
+
+// check if mouse is hovering over an item
 func (m *List) MouseHovered(msg tea.MouseMsg) (ListEntry, bool) {
 	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))
-	mouse := msg.Mouse()
-	if len(m.FilteredData) == 0 {
+	if start >= len(m.FilteredData) {
 		return ListEntry{}, false
 	}
+
 	for i, e := range m.FilteredData[start:end] {
 		z := zone.Get(e.Name)
-		if z.IsZero() {
-			break
-		}
-		if mouse.X >= z.StartX && mouse.X <= z.EndX &&
-			mouse.Y >= z.StartY && mouse.Y <= z.EndY {
+		if z.InBounds(msg) {
 			m.Cursor = i
 			return e, true
 		}
 	}
 	return ListEntry{}, false
 }
+
+// return currently selected item
 func (m List) Hovered() (ListEntry, bool) {
 	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))
-	if len(m.FilteredData) == 0 {
+	if start >= len(m.FilteredData) || len(m.FilteredData[start:end]) == 0 {
 		return ListEntry{}, false
 	}
 	return m.FilteredData[start:end][m.Cursor], true
+}
+
+// apply filter to list data
+func (m List) filterData() []ListEntry {
+	if m.SearchQuery == "" {
+		return m.AllData
+	}
+
+	var filtered []ListEntry
+	query := strings.ToLower(m.SearchQuery)
+
+	for _, e := range m.AllData {
+		content := strings.ToLower(e.Name + e.Desc)
+		if strings.Contains(content, query) {
+			filtered = append(filtered, e)
+		}
+	}
+	return filtered
+}
+
+// resize events
+func (m *List) handleResize(msg tea.WindowSizeMsg) {
+	m.width = msg.Width
+	m.height = msg.Height
+	m.ViewHeight = max((msg.Height*80)/100, 1)
+	m.paginator.PerPage = max((m.ViewHeight*35)/100, 1)
+}
+
+// keyboard input
+func (m *List) handleKeyPress(msg tea.KeyMsg) {
+	if m.isSearching && len(msg.String()) == 1 && msg.String() != "/" {
+		m.SearchQuery += msg.String()
+		m.searchChanged = true
+		return
+	}
+	switch msg.String() {
+	case "backspace":
+		if m.isSearching && len(m.SearchQuery) > 0 {
+			m.SearchQuery = m.SearchQuery[:len(m.SearchQuery)-1]
+			m.searchChanged = true
+		}
+	case "/":
+		m.isSearching = !m.isSearching
+		if !m.isSearching {
+			m.SearchQuery = ""
+		}
+	case "esc":
+		m.isSearching = false
+		m.SearchQuery = ""
+	case "up", "k":
+		m.Cursor--
+	case "down", "j":
+		m.Cursor++
+	default:
+	}
+}
+
+// adjustCursor ensures cursor stays within valid bounds
+func (m *List) adjustCursor() {
+	itemsPerPage := m.paginator.ItemsOnPage(len(m.FilteredData))
+	if itemsPerPage == 0 {
+		m.Cursor = 0
+		return
+	}
+
+	switch {
+	case m.Cursor < 0:
+		if m.paginator.Page > 0 {
+			m.paginator.PrevPage()
+			m.Cursor = m.paginator.ItemsOnPage(len(m.FilteredData)) - 1
+		} else {
+			m.Cursor = 0
+		}
+	case m.Cursor >= itemsPerPage:
+		if !m.paginator.OnLastPage() {
+			m.paginator.NextPage()
+			m.Cursor = 0
+		} else {
+			m.Cursor = itemsPerPage - 1
+		}
+	}
+}
+
+// renderSearch renders search UI elements
+func (m List) renderSearch(t themes.Theme) string {
+	if !m.isSearching {
+		return ""
+	}
+	return "> " + m.SearchQuery + "\n"
+}
+
+// renderListContent renders list items
+func (m List) renderListContent(t themes.Theme) string {
+	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))
+	if start >= len(m.FilteredData) {
+		return ""
+	}
+
+	var b strings.Builder
+	currentPage := m.FilteredData[start:end]
+
+	for i, e := range currentPage {
+		accentColor := themes.AccentColor()
+		if i == m.Cursor {
+			accentColor = themes.SelectionColor()
+		}
+
+		// Truncate long names
+		name := e.Name
+		if len(name) > maxNameLength {
+			name = name[:maxNameLength] + "…"
+		}
+
+		// Render selection indicator
+		selector := " "
+		if i == m.Cursor {
+			selector = lipgloss.NewStyle().
+				Foreground(t.CursorColor).
+				Background(t.Background).
+				Render("│")
+		}
+
+		// Render name
+		nameStyle := lipgloss.NewStyle().
+			Foreground(accentColor).
+			Blink(m.SelectedName == e.Name)
+		b.WriteString(zone.Mark(e.Name, selector+nameStyle.Render(name)) + "\n")
+
+		// Render description
+		if e.Desc != "" {
+			descStyle := lipgloss.NewStyle().Foreground(t.Foreground)
+			b.WriteString(selector + descStyle.Render(e.Desc) + "\n")
+		}
+		b.WriteString("\n")
+	}
+
+	return b.String()
+}
+
+// max returns the larger of two integers
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

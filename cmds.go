@@ -2,7 +2,6 @@ package main
 
 import (
 	"time"
-	"ytt/daemon"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
 )
@@ -14,12 +13,3 @@ func CmdTick() tea.Msg {
 	return TickMsg{}
 }
 
-// seek forward or backward
-func CmdSeek(forward bool) {
-	seekTime := time.Second * 10
-	if forward {
-		daemon.Seek(seekTime)
-	} else {
-		daemon.Seek(seekTime * -1)
-	}
-}

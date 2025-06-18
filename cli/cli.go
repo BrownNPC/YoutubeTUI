@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"ytt/daemon"
+	"ytt/YoutubeDaemon/yt"
 )
 
 var configDir = func() string {
@@ -50,6 +50,7 @@ func HandleArgs(args ...string) (run bool) {
 		return RefreshCache()
 	case "config", "-c":
 		OpenConfigDir()
+		return false
 	case "add", "-a":
 		return AddPlaylists(args[1:])
 	default:
@@ -57,20 +58,11 @@ func HandleArgs(args ...string) (run bool) {
 	}
 	return false
 }
-func RefreshCache() bool {
-	dirs, err := os.ReadDir(daemon.CacheDir)
+func RefreshCache() (run bool) {
+	err := yt.ClearCache()
 	if err != nil {
 		fmt.Println(err)
 		return false
-	}
-	for _, d := range dirs {
-		if filepath.Ext(d.Name()) == ".json" {
-			err = os.Remove(filepath.Join(daemon.CacheDir, d.Name()))
-			if err != nil {
-				fmt.Printf("err: %v\n", err)
-			}
-
-		}
 	}
 	return true
 }

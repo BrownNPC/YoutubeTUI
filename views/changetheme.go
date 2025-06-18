@@ -23,22 +23,22 @@ func ChangeTheme() ChangeThemeModel {
 	themelist := components.NewList(rows, "Themes")
 	//Accents
 	rows = []components.ListEntry{
-		components.ListEntry{Name: "ThemeDefault"},
-		components.ListEntry{Name: "Red"},
-		components.ListEntry{Name: "Green"},
-		components.ListEntry{Name: "Blue"},
-		components.ListEntry{Name: "White"},
-		components.ListEntry{Name: "Purple"},
-		components.ListEntry{Name: "Yellow"},
-		components.ListEntry{Name: "Pink"},
-		components.ListEntry{Name: "Cyan"},
-		components.ListEntry{Name: "BrightWhite"},
-		components.ListEntry{Name: "BrightPurple"},
-		components.ListEntry{Name: "BrightRed"},
-		components.ListEntry{Name: "BrightGreen"},
-		components.ListEntry{Name: "BrightBlue"},
-		components.ListEntry{Name: "BrightYellow"},
-		components.ListEntry{Name: "BrightCyan"},
+		{Name: "ThemeDefault"},
+		{Name: "Red"},
+		{Name: "Green"},
+		{Name: "Blue"},
+		{Name: "White"},
+		{Name: "Purple"},
+		{Name: "Yellow"},
+		{Name: "Pink"},
+		{Name: "Cyan"},
+		{Name: "BrightWhite"},
+		{Name: "BrightPurple"},
+		{Name: "BrightRed"},
+		{Name: "BrightGreen"},
+		{Name: "BrightBlue"},
+		{Name: "BrightYellow"},
+		{Name: "BrightCyan"},
 	}
 
 	accentList := components.NewList(rows, "Accent Colors")
@@ -160,13 +160,14 @@ func (m ChangeThemeModel) View() string {
 		Background(t.Background)
 	var tabStyle = base.
 		Border(lipgloss.NormalBorder()).
+		BorderForeground(t.SelectionBackground).
 		BorderBackground(t.Background)
 	var tabs []string
 	for i, c := range m.tabcontent {
 		var content string
 		if i == m.selectedTab {
 			content = tabStyle.
-				BorderForeground(themes.AccentColor()).
+				// BorderForeground(themes.AccentColor()).
 				Foreground(themes.SelectionColor()).
 				Render(c)
 		} else {

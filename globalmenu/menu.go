@@ -31,7 +31,7 @@ func E(key, desc string) Entry {
 func init() {
 	m.MouseHoveredOn = -1
 	m.Entries = []Entry{
-		E("p", "Go to playlist picker"),
+		E("l", "Go to playlist picker"),
 		E("t", "Go to theme picker"),
 	}
 }
@@ -61,10 +61,12 @@ func Update(msg tea.Msg) (cmd tea.Cmd) {
 }
 func gotoView(key string) tea.Cmd {
 	switch key {
-	case "p":
+	case "l":
 		return views.Goto(views.ViewPlaylists)
 	case "t":
 		return views.Goto(views.ViewChangeTheme)
+	case "shift+d":
+		return views.Goto(views.ViewErrorLog)
 	}
 	return nil
 }
@@ -92,7 +94,7 @@ func View(click bool) string {
 		o += textStyle.
 			Render(content) + newline
 	}
-	border := lipgloss.NormalBorder()
+	border := lipgloss.RoundedBorder()
 	o = base.
 		Border(border).
 		BorderForeground(t.Foreground).

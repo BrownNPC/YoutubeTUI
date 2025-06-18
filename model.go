@@ -110,7 +110,9 @@ func (m model) visibleView() string {
 	case views.ViewChangeTheme:
 		content = m.changeThemeView.View()
 	case views.ViewTracks:
+		views.ActiveTracksModel.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
 		content = views.ActiveTracksModel.View()
+
 	}
 	return content
 }

@@ -1,6 +1,7 @@
 package views
 
 import (
+	"fmt"
 	"ytt/cli"
 	"ytt/components"
 	"ytt/helpers"
@@ -160,14 +161,13 @@ func (m ChangeThemeModel) View() string {
 		Background(t.Background)
 	var tabStyle = base.
 		Border(lipgloss.NormalBorder()).
-		BorderForeground(t.SelectionBackground).
+		BorderForeground(t.Foreground).
 		BorderBackground(t.Background)
 	var tabs []string
 	for i, c := range m.tabcontent {
 		var content string
 		if i == m.selectedTab {
 			content = tabStyle.
-				// BorderForeground(themes.AccentColor()).
 				Foreground(themes.SelectionColor()).
 				Render(c)
 		} else {
@@ -180,7 +180,15 @@ func (m ChangeThemeModel) View() string {
 	tabContent := lipgloss.JoinHorizontal(0, tabs...)
 	tabContent = base.
 		Width(m.width).
+		PaddingLeft(1).
 		Render(tabContent)
+	activeThemeText := base.
+		PaddingTop(1).
+		PaddingLeft(4).
+		Width(m.width).
+		// Background(t.SelectionBackground).
+		Foreground(t.Foreground).
+		Render(fmt.Sprintf("Theme in use: %s", themes.Active().Name))
 	listStyle := base.
 		Width(m.width).
 		Height(m.height).
@@ -189,6 +197,7 @@ func (m ChangeThemeModel) View() string {
 	o += lipgloss.JoinVertical(0,
 		tabContent,
 		listStyle.Render(visibleList.View()),
+		activeThemeText,
 	)
 	return base.Render(o)
 }

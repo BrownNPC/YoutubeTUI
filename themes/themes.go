@@ -11,13 +11,14 @@ import (
 )
 
 type ThemeColor string
+
 func (c ThemeColor) RGBA() (r, g, b, a uint32) {
 	return lipgloss.Color(string(c)).RGBA()
 }
 
 // Theme matches the JSON schema for a terminal color theme.
 type Theme struct {
-	Name                ThemeColor
+	Name                string
 	Black               ThemeColor
 	Red                 ThemeColor
 	Green               ThemeColor

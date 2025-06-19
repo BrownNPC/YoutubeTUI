@@ -66,6 +66,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.menuOpened = false
 			}
 		}
+		// Playlists view has to close the playlist click menu [views.PlaylistMenu]
+		m.updateViews(msg)
 	case tea.KeyMsg:
 		switch msg.String() {
 		case " ", "space":

@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"image"
 	daemon "ytt/YoutubeDaemon"
 	"ytt/components"
 	"ytt/helpers"
@@ -18,10 +19,13 @@ type PlaylistModel struct {
 	showingOptions bool
 }
 
-var Menu = struct {
-	Options        []string
-	selectedOption int
-	prefix         string
+// left click menu
+var PlaylistMenu = struct {
+	Options          []string
+	selectedOption   int
+	prefix           string
+	selectedPlaylist daemon.Playlist // which playlist is this menu for?
+	openedAt         image.Point     // coordinates of where we should open the menu. zero value = open in center
 }{
 	Options: []string{
 		"Play",
@@ -33,27 +37,28 @@ var Menu = struct {
 func RenderOptions() string {
 	t := themes.Active()
 	var o string
-	for i, opt := range Menu.Options {
-		if Menu.selectedOption == i {
+	for i, opt := range PlaylistMenu.Options {
+		if PlaylistMenu.selectedOption == i {
 			opt = lipgloss.NewStyle().
 				Background(t.Background).
 				Foreground(t.CursorColor).
-				Faint(true).
+				Bold(true).
 				Render(opt)
 		} else {
 			opt = lipgloss.NewStyle().
 				Background(t.Background).
 				Foreground(t.Foreground).
+				Faint(true).
 				Render(opt)
 		}
-		opt = zone.Mark(fmt.Sprint(Menu.prefix, i), opt)
-		if i != len(Menu.Options)-1 {
+		opt = zone.Mark(fmt.Sprint(PlaylistMenu.prefix, i), opt)
+		if i != len(PlaylistMenu.Options)-1 {
 			opt += "\n"
 		}
 		o += opt
 	}
 	base := lipgloss.NewStyle()
-	return base.
+	o = base.
 		Border(lipgloss.RoundedBorder()).
 		BorderBackground(t.Background).
 		BorderForeground(t.SelectionBackground).
@@ -62,6 +67,7 @@ func RenderOptions() string {
 		AlignHorizontal(lipgloss.Center).
 		Background(t.Background).
 		Render(o)
+	return zone.Mark("playlistModal", o)
 }
 func Playlist() PlaylistModel {
 	var rows []components.ListEntry
@@ -69,22 +75,22 @@ func Playlist() PlaylistModel {
 		var r components.ListEntry
 		r.Name = p.Title
 		r.Desc = p.Channel
-		r.CustomData = p.ID
+		r.CustomData = p
 		rows = append(rows, r)
 	}
 	list := components.NewList(rows[:], "Playlists")
 	return PlaylistModel{list: list}
 }
-func updateMenu(keyCode rune) {
+func updateMenuByReadingKeyboard(keyCode rune) {
 	switch keyCode {
 	case tea.KeyDown, 'j':
-		Menu.selectedOption++
+		PlaylistMenu.selectedOption++
 	case tea.KeyUp, 'k':
-		Menu.selectedOption--
+		PlaylistMenu.selectedOption--
 	}
-	Menu.selectedOption %= len(Menu.Options)
-	if Menu.selectedOption<0{
-		Menu.selectedOption=len(Menu.Options)-1
+	PlaylistMenu.selectedOption %= len(PlaylistMenu.Options)
+	if PlaylistMenu.selectedOption < 0 {
+		PlaylistMenu.selectedOption = len(PlaylistMenu.Options) - 1
 	}
 }
 func (m PlaylistModel) Update(msg tea.Msg) (PlaylistModel, tea.Cmd) {
@@ -96,13 +102,17 @@ func (m PlaylistModel) Update(msg tea.Msg) (PlaylistModel, tea.Cmd) {
 		switch msg.Key().Code {
 		case tea.KeyEsc:
 			m.showingOptions = false
+			PlaylistMenu.selectedPlaylist = daemon.Playlist{}
+			PlaylistMenu.openedAt = image.Point{}
 			return m, nil
 		case tea.KeyEnter:
 			m.showingOptions = true
+			p, _ := m.list.Hovered()
+			PlaylistMenu.selectedPlaylist = p.CustomData.(daemon.Playlist)
 			return m, nil
 		default:
 			if m.showingOptions {
-				updateMenu(msg.Key().Code)
+				updateMenuByReadingKeyboard(msg.Key().Code)
 			}
 		}
 		// if e, ok := m.list.Hovered(); ok {
@@ -112,13 +122,34 @@ func (m PlaylistModel) Update(msg tea.Msg) (PlaylistModel, tea.Cmd) {
 		// 		return m, cmd
 		// 	}
 		// }
+	case tea.MouseClickMsg:
+		if m.showingOptions || msg.Mouse().Button == tea.MouseLeft || msg.Mouse().Button == tea.MouseRight {
+			z := zone.Get("playlistModal")
+			// hide if clicking outside modal
+			if !helpers.ZoneCollision(z, msg) {
+				m.showingOptions = false
+				PlaylistMenu.selectedPlaylist = daemon.Playlist{}
+				PlaylistMenu.openedAt = image.Point{}
+			}
+		}
+		// open the modal for the clicked playlist
+		if e, ok := m.list.MouseHovered(msg); ok {
+			hoveredPlaylist := e.CustomData.(daemon.Playlist)
+			p, _ := m.list.Hovered()
+			if p.Name == e.Name && p.Desc == e.Desc {
+				m.showingOptions = true
+				PlaylistMenu.selectedPlaylist = hoveredPlaylist
+				PlaylistMenu.openedAt.X, PlaylistMenu.openedAt.Y = msg.X, msg.Y
+			}
+		}
 	case tea.MouseMsg:
+		for i := range PlaylistMenu.Options {
+			z := zone.Get(fmt.Sprint(PlaylistMenu.prefix, i))
+			if helpers.ZoneCollision(z, msg) {
+				PlaylistMenu.selectedOption = i
+			}
+		}
 		// if e, ok := m.list.MouseHovered(msg); ok {
-		// 	if msg.Mouse().Button == tea.MouseLeft {
-		// 		ReloadTracks(e.CustomData.(string))
-		// 		cmd = Goto(ViewTracks)
-		// 		return m, cmd
-		// 	}
 		// }
 	}
 	if !m.showingOptions {
@@ -136,7 +167,13 @@ func (m PlaylistModel) View() string {
 		Background(t.Background)
 	o += listStyle.Render(m.list.View())
 	if m.showingOptions {
-		o, _ = helpers.OverlayCenter(o, RenderOptions(), true)
+		// zero value, draw at center
+		if PlaylistMenu.openedAt.Eq(image.Point{}) {
+			o, _ = helpers.OverlayCenter(o, RenderOptions(), true)
+		} else { // draw at coordinates
+			x, y := PlaylistMenu.openedAt.X, PlaylistMenu.openedAt.Y
+			o = helpers.PlaceOverlay(x, y, RenderOptions(), o)
+		}
 	}
 	return o
 }

@@ -3,11 +3,13 @@ package components
 import (
 	"strings"
 
+	"ytt/helpers"
+	"ytt/themes"
+
 	"github.com/charmbracelet/bubbles/v2/paginator"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
-	"ytt/themes"
 )
 
 const (
@@ -117,7 +119,6 @@ func (m List) View() string {
 	}
 	// Render each item in current page
 	for i, e := range data {
-		zoneId := e.Name // name is truncated later
 		var selected string = " "
 		// Highlight selected item
 		nameColor, descColor := accentColor, t.Foreground
@@ -131,19 +132,19 @@ func (m List) View() string {
 		if len(e.Name) > 40 {
 			displayName = e.Name[:40] + "…"
 		}
-
 		// Render name and description
 		var element string
-		element += selected + base.
+		displayName = selected + base.
 			Foreground(nameColor).
 			Blink(m.SelectedName == displayName).
 			Render(displayName)
-		element = zone.Mark(zoneId, element) + "\n"
+		element += zone.Mark(e.Name, displayName) + "\n"
 		if e.Desc != "" {
-			element += selected + base.
+			desc := selected + base.
 				MarginBottom(1).
 				Foreground(descColor).
-				Render(e.Desc) + "\n"
+				Render(e.Desc)
+			element += zone.Mark(e.Name+"desc", desc) + "\n"
 		} else {
 			element += "\n"
 		}
@@ -162,7 +163,7 @@ func (m List) View() string {
 		BorderBackground(t.Background).
 		BorderForeground(t.Foreground).
 		Render(title + "\n" + search + m.paginator.View() + "\n\n" + listContent)
-	return zone.Mark("activeList", view)
+	return zone.Mark("activeList", view)// used by model.View
 }
 
 // check if mouse is hovering over an item
@@ -173,8 +174,8 @@ func (m *List) MouseHovered(msg tea.MouseMsg) (ListEntry, bool) {
 	}
 
 	for i, e := range m.FilteredData[start:end] {
-		z := zone.Get(e.Name)
-		if z.InBounds(msg) {
+		z, z2 := zone.Get(e.Name), zone.Get(e.Name+"desc")
+		if z.InBounds(msg) || helpers.ZoneCollision(z2, msg) {
 			m.Cursor = i
 			return e, true
 		}
@@ -270,62 +271,6 @@ func (m *List) adjustCursor() {
 			m.Cursor = itemsPerPage - 1
 		}
 	}
-}
-
-// renderSearch renders search UI elements
-func (m List) renderSearch(t themes.Theme) string {
-	if !m.isSearching {
-		return ""
-	}
-	return "> " + m.SearchQuery + "\n"
-}
-
-// renderListContent renders list items
-func (m List) renderListContent(t themes.Theme) string {
-	start, end := m.paginator.GetSliceBounds(len(m.FilteredData))
-	if start >= len(m.FilteredData) {
-		return ""
-	}
-
-	var b strings.Builder
-	currentPage := m.FilteredData[start:end]
-
-	for i, e := range currentPage {
-		accentColor := themes.AccentColor()
-		if i == m.Cursor {
-			accentColor = themes.SelectionColor()
-		}
-
-		// Truncate long names
-		name := e.Name
-		if len(name) > maxNameLength {
-			name = name[:maxNameLength] + "…"
-		}
-
-		// Render selection indicator
-		selector := " "
-		if i == m.Cursor {
-			selector = lipgloss.NewStyle().
-				Foreground(t.CursorColor).
-				Background(t.Background).
-				Render("│")
-		}
-
-		// Render name
-		nameStyle := lipgloss.NewStyle().
-			Foreground(accentColor).
-			Blink(m.SelectedName == e.Name)
-		b.WriteString(zone.Mark(e.Name, selector+nameStyle.Render(name)) + "\n")
-
-		// Render description
-		if e.Desc != "" {
-			descStyle := lipgloss.NewStyle().Foreground(t.Foreground)
-			b.WriteString(selector + descStyle.Render(e.Desc) + "\n")
-		}
-		b.WriteString("\n")
-	}
-
-	return b.String()
 }
 
 // max returns the larger of two integers

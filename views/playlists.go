@@ -14,9 +14,9 @@ import (
 )
 
 type PlaylistModel struct {
-	list           components.List
-	width, height  int
-	showingMenu bool
+	list          components.List
+	width, height int
+	showingMenu   bool
 }
 
 // left click menu
@@ -111,6 +111,12 @@ func (m PlaylistModel) Update(msg tea.Msg) (PlaylistModel, tea.Cmd) {
 				if ok {
 					m.showingMenu = true
 					PlaylistMenu.selectedPlaylist = p.CustomData.(daemon.Playlist)
+				}
+			} else {
+				opt := PlaylistMenu.Options[PlaylistMenu.selectedOption]
+				if opt == "Play" {
+					daemon.PlayTrack(&PlaylistMenu.selectedPlaylist.Tracks[0])
+					m.showingMenu = false
 				}
 			}
 			return m, nil

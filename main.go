@@ -1,10 +1,7 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	daemon "ytt/YoutubeDaemon"
 	"ytt/YoutubeDaemon/yt"
@@ -15,31 +12,15 @@ import (
 	zone "github.com/lrstanley/bubblezone/v2"
 )
 
-func GetLatestYtDlpVersion() (string, error) {
-	resp, err := http.Get("https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest")
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch release info: %w", err)
+func ErrorWriter() {
+	for e := range daemon.Events() {
+		switch e := e.(type) {
+		case daemon.EventErr:
+			panic(e)
+		}
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("non-200 response from GitHub: %s", resp.Status)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	var data struct {
-		TagName string `json:"tag_name"`
-	}
-	if err := json.Unmarshal(body, &data); err != nil {
-		return "", fmt.Errorf("failed to parse JSON: %w", err)
-	}
-
-	return data.TagName, nil
 }
+
 func main() {
 	if cli.Run() == false {
 		return
@@ -54,6 +35,7 @@ func main() {
 	<-yt.Ready
 	daemon.AddPlaylists(ids...)
 	themes.Wait()
+	go ErrorWriter()
 	themes.Activate(cli.Config.ThemeName)
 	themes.Selection = cli.Config.ThemeAccent
 	themes.Accent = cli.Config.ThemeAccent

@@ -66,20 +66,21 @@ func RefreshCache() (run bool) {
 	}
 	return true
 }
-func AddPlaylists(ids []string) bool {
-	if len(ids) == 0 {
-		fmt.Println("Must provide YouTube playlist IDs. See: ytt help")
+func AddPlaylists(urls []string) bool {
+	if len(urls) == 0 {
+		fmt.Println("Must provide YouTube playlist URL.")
+		fmt.Println("Example: ", `ytt add "https://www.youtube.com/watch?v=0QvdDX2Q7rI&list=PLN1mxegxWPd0GfRvWy_WzwpNKnqSWTV5U"`)
 		return false
 	}
-	invalid := Config.AddPlaylists(ids...)
+	invalid := Config.AddPlaylists(urls...)
 	for _, id := range invalid {
-		fmt.Println(id, "is an invalid id.")
+		fmt.Println(id, "is an invalid url, please make sure to surround the url with double quotes.")
 	}
 	if len(invalid) != 0 {
-		return false
 	}
 	Config.Save()
-	return true
+	fmt.Println("Added!")
+	return false
 }
 func OpenConfigDir() {
 	var cmd *exec.Cmd

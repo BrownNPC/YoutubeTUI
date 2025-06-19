@@ -5,16 +5,17 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strings"
 	"ytt/themes"
 
 	"github.com/pelletier/go-toml/v2"
 )
 
 type _config struct {
-	ThemeName   string
-	ThemeAccent themes.Color
+	ThemeName           string
+	ThemeAccent         themes.Color
 	ThemeSelectionColor themes.Color
-	Playlists   []string //youtube playlist ids
+	Playlists           []string //youtube playlist ids
 }
 
 func LoadConfig() {
@@ -39,21 +40,25 @@ func (c _config) Save() {
 		panic(err)
 	}
 }
-func (c *_config) AddPlaylists(ids ...string) (invalidIds []string) {
-	var playlistIDRegex = regexp.MustCompile(`^PL[A-Za-z0-9_-]{32}$`)
 
-	for _, id := range ids {
-		// id must be valid
-		if !playlistIDRegex.MatchString(id) {
-			invalidIds = append(invalidIds, id)
+// https://stackoverflow.com/a/75373610
+var playlistIDRegex = regexp.MustCompile(`[?&]list=([^#?&]*)`)
+
+func (c *_config) AddPlaylists(inputs ...string) (invalidIds []string) {
+	for _, input := range inputs {
+		input = strings.TrimSpace(input)
+
+		var id string
+		if m := playlistIDRegex.FindStringSubmatch(input); m != nil {
+			id = m[1]
+		} else {
+			invalidIds = append(invalidIds, input)
 			continue
 		}
-		// check for duplicate (already added)
-		if slices.Index(c.Playlists, id) != -1 {
-			continue
+
+		if slices.Index(c.Playlists, id) == -1 {
+			c.Playlists = append(c.Playlists, id)
 		}
-		// finally add the id
-		c.Playlists = append(c.Playlists, id)
 	}
 	return invalidIds
 }

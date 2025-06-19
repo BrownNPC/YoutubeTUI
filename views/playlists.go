@@ -16,7 +16,7 @@ import (
 type PlaylistModel struct {
 	list           components.List
 	width, height  int
-	showingOptions bool
+	showingMenu bool
 }
 
 // left click menu
@@ -101,33 +101,30 @@ func (m PlaylistModel) Update(msg tea.Msg) (PlaylistModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Key().Code {
 		case tea.KeyEsc:
-			m.showingOptions = false
+			m.showingMenu = false
 			PlaylistMenu.selectedPlaylist = daemon.Playlist{}
 			PlaylistMenu.openedAt = image.Point{}
 			return m, nil
 		case tea.KeyEnter:
-			m.showingOptions = true
-			p, _ := m.list.Hovered()
-			PlaylistMenu.selectedPlaylist = p.CustomData.(daemon.Playlist)
+			if !m.showingMenu {
+				p, ok := m.list.Hovered()
+				if ok {
+					m.showingMenu = true
+					PlaylistMenu.selectedPlaylist = p.CustomData.(daemon.Playlist)
+				}
+			}
 			return m, nil
 		default:
-			if m.showingOptions {
+			if m.showingMenu {
 				updateMenuByReadingKeyboard(msg.Key().Code)
 			}
 		}
-		// if e, ok := m.list.Hovered(); ok {
-		// 	if msg.String() == "enter" {
-		// 		ReloadTracks(e.CustomData.(string))
-		// 		cmd = Goto(ViewTracks)
-		// 		return m, cmd
-		// 	}
-		// }
 	case tea.MouseClickMsg:
-		if m.showingOptions || msg.Mouse().Button == tea.MouseLeft || msg.Mouse().Button == tea.MouseRight {
+		if m.showingMenu || msg.Mouse().Button == tea.MouseLeft || msg.Mouse().Button == tea.MouseRight {
 			z := zone.Get("playlistModal")
 			// hide if clicking outside modal
 			if !helpers.ZoneCollision(z, msg) {
-				m.showingOptions = false
+				m.showingMenu = false
 				PlaylistMenu.selectedPlaylist = daemon.Playlist{}
 				PlaylistMenu.openedAt = image.Point{}
 			}
@@ -137,7 +134,7 @@ func (m PlaylistModel) Update(msg tea.Msg) (PlaylistModel, tea.Cmd) {
 			hoveredPlaylist := e.CustomData.(daemon.Playlist)
 			p, _ := m.list.Hovered()
 			if p.Name == e.Name && p.Desc == e.Desc {
-				m.showingOptions = true
+				m.showingMenu = true
 				PlaylistMenu.selectedPlaylist = hoveredPlaylist
 				PlaylistMenu.openedAt.X, PlaylistMenu.openedAt.Y = msg.X, msg.Y
 			}
@@ -152,7 +149,7 @@ func (m PlaylistModel) Update(msg tea.Msg) (PlaylistModel, tea.Cmd) {
 		// if e, ok := m.list.MouseHovered(msg); ok {
 		// }
 	}
-	if !m.showingOptions {
+	if !m.showingMenu {
 		m.list, cmd = m.list.Update(msg)
 	}
 	return m, cmd
@@ -166,7 +163,7 @@ func (m PlaylistModel) View() string {
 		PaddingLeft(2).
 		Background(t.Background)
 	o += listStyle.Render(m.list.View())
-	if m.showingOptions {
+	if m.showingMenu {
 		// zero value, draw at center
 		if PlaylistMenu.openedAt.Eq(image.Point{}) {
 			o, _ = helpers.OverlayCenter(o, RenderOptions(), true)

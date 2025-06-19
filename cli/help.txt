@@ -1,7 +1,7 @@
 usage:	ytt [options]
 options:
-  add, -a, Add playlists eg.
-    ytt add <YOUTUBE_PLAYLIST_ID_1> <YOUTUBE_PLAYLIST_ID_2> 
+  add, -a, Add playlists using url eg.
+    ytt add "https://www.youtube.com/watch?v=0QvdDX2Q7rI&list=PLN1mxegxWPd0GfRvWy_WzwpNKnqSWTV5U"
 
   help,    -h, Show this help message
   config,  -c, Open config file folder

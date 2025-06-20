@@ -14,7 +14,7 @@ var (
 // A playlist is just an ordered slice of Tracks
 type Playlist struct {
 	yt.List
-	Tracks []Track
+	Tracks []*Track
 }
 type Track struct {
 	yt.Entry

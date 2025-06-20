@@ -115,8 +115,8 @@ func (m PlaylistModel) Update(msg tea.Msg) (PlaylistModel, tea.Cmd) {
 			} else {
 				opt := PlaylistMenu.Options[PlaylistMenu.selectedOption]
 				if opt == "Play" {
+					go daemon.PlayPlaylist(PlaylistMenu.selectedPlaylist)
 					m.showingMenu = false
-					daemon.PlayTrack(&PlaylistMenu.selectedPlaylist.Tracks[0])
 				}
 			}
 			return m, nil

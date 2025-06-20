@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"sync"
 	"ytt/YoutubeDaemon/yt"
 
@@ -10,7 +11,7 @@ import (
 	"github.com/jfbus/httprs"
 )
 
-type Event = any
+type Event any
 
 type EventTrackStarted Track
 type EventPlaylistStarted Playlist
@@ -19,18 +20,14 @@ type EventInfo = string
 
 type Command any
 type CmdStop struct{}
-type CmdFetchStreamURL struct {
-	track *Track
-}
-type CmdPlayTrack struct {
-	track Track
-}
-type CmdRegisterPlaylists struct {
-	playlistIDs []string
-}
-type CmdGetRegisteredPlaylists struct {
-	playlists chan<- []Playlist
-}
+type CmdFetchStreamURL struct{ *Track }
+type CmdPlayTrack struct{ *Track }
+type CmdSetQueue struct{ Tracks []*Track }
+type CmdGetQueue struct{ queue chan<- []*Track }
+type CmdStartQueue struct{}               // start playing queue
+type CmdSetQueuePosition struct{ *Track } // set queue to start from here
+type CmdRegisterPlaylists struct{ playlistIDs []string }
+type CmdGetRegisteredPlaylists struct{ playlists chan<- []Playlist }
 
 var cmdCh chan Command
 var events chan Event
@@ -38,7 +35,7 @@ var events chan Event
 func InitDaemon() {
 	<-yt.Ready
 	cmdCh = make(chan Command)
-	events = make(chan Event, 1)
+	events = make(chan Event)
 	go playerManager(cmdCh, events)
 }
 func Events() <-chan Event {
@@ -47,9 +44,14 @@ func Events() <-chan Event {
 
 func playerManager(cmdCh <-chan Command, events chan<- Event) {
 	var (
-		player    *oto.Player
-		cleanup   func()
+		player  *oto.Player
+		cleanup func() //for stopping player
+
 		playlists = []Playlist{} // registered playlists
+
+		queue        = []*Track{} // []Track from within a playlist
+		queueIndex   int
+		trackPlaying *Track
 	)
 
 	for cmd := range cmdCh {
@@ -60,8 +62,28 @@ func playerManager(cmdCh <-chan Command, events chan<- Event) {
 				cleanup = nil
 				events <- fmt.Sprintln("[INFO] asked to stop")
 			}
+		case CmdSetQueue:
+			queue = cmd.Tracks
+			queueIndex = 0
+		case CmdStartQueue:
+			if len(queue) >= 1 {
+				trackPlaying = queue[queueIndex]
+			} else {
+				events <- fmt.Errorf("Queue too small to play %d", len(queue))
+			}
+			go PlayTrack(trackPlaying)
+			events <- fmt.Sprintf("[INFO] playing track %d: %s from queue", queueIndex, trackPlaying.Title)
+			queueIndex++
+			queueIndex %= len(queue)
+		case CmdGetQueue:
+			cmd.queue <- queue
+		case CmdSetQueuePosition:
+			i := slices.Index(queue, cmd.Track)
+			if i != -1 {
+				queueIndex = i
+			}
 		case CmdFetchStreamURL:
-			var t *Track = cmd.track
+			var t *Track = cmd.Track
 			events <- fmt.Sprintf("[INFO] Trying to fetch stream url for %v\n", *t)
 			if t.StreamingURL != "" {
 				continue
@@ -74,12 +96,12 @@ func playerManager(cmdCh <-chan Command, events chan<- Event) {
 			events <- fmt.Sprintf("[INFO] Fetched streaming URL %s\n", url)
 			t.StreamingURL = url
 		case CmdPlayTrack:
-			var t Track = cmd.track
+			var t *Track = cmd.Track
 			if t.StreamingURL == "" {
 				events <- fmt.Errorf("Trying to play but streaming url is empty for %v\n", t)
 				continue
 			}
-			events <- fmt.Sprintf("[INFO] Getting response body for track %v\n", t)
+			events <- fmt.Sprintf("[INFO] Getting response body for track %s\n", t.Title)
 			resp, err := http.Get(t.StreamingURL)
 			if err != nil {
 				events <- err
@@ -87,14 +109,14 @@ func playerManager(cmdCh <-chan Command, events chan<- Event) {
 			}
 			f := httprs.NewHttpReadSeeker(resp)
 			reader, _, err := newWebMReader(f)
-			events <- fmt.Sprintf("[INFO] Decoder initialized for %v\n", t)
+			events <- fmt.Sprintf("[INFO] Decoder initialized for %s\n", t.Title)
 			if err != nil {
 				events <- err
 				continue
 			}
 			player = otoCtx.NewPlayer(reader)
 			player.Play()
-			events <- fmt.Sprintf("[INFO] player is playing for %v\n", t)
+			events <- fmt.Sprintf("[INFO] player is playing %s\n", t.Title)
 			if cleanup != nil {
 				panic("assert: cleanup should be nil before playing track")
 			}
@@ -125,7 +147,7 @@ func playerManager(cmdCh <-chan Command, events chan<- Event) {
 					events <- err
 					pl := Playlist{List: list}
 					for _, t := range list.Entries {
-						pl.Tracks = append(pl.Tracks, Track{Entry: t})
+						pl.Tracks = append(pl.Tracks, &Track{Entry: t})
 					}
 					added <- pl
 				}()
@@ -146,9 +168,28 @@ func GetRegisteredPlaylists() []Playlist {
 	cmdCh <- CmdGetRegisteredPlaylists{playlistsCh}
 	return <-playlistsCh
 }
+
+// TODO: make this take a ctx that is cancelable
+// or an "ok" channel. The goal is to show a loading screen while
+// we prepare the player, and show a cancel button to the user
 func PlayTrack(t *Track) {
+	cmdCh <- CmdStop{}
 	cmdCh <- CmdFetchStreamURL{t}
 	// play the track
+	cmdCh <- CmdPlayTrack{t}
+}
+
+// TODO: make this take a ctx that is cancelable
+// or an "ok" channel. The goal is to show a loading screen while
+// we prepare the player, and show a cancel button to the user
+func PlayPlaylist(p Playlist) {
 	cmdCh <- CmdStop{}
-	cmdCh <- CmdPlayTrack{track: *t}
+	cmdCh <- CmdSetQueue{p.Tracks}
+	cmdCh <- CmdStartQueue{}
+}
+
+func GetQueue() []*Track {
+	queue := make(chan []*Track)
+	cmdCh <- CmdGetQueue{queue}
+	return <-queue
 }

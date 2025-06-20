@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 	daemon "ytt/YoutubeDaemon"
@@ -15,12 +16,12 @@ import (
 func ErrorWriter() {
 	logfile, err := os.OpenFile("log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		panic(fmt.Errorf("Coult not create log file %w", err))
+		log.Fatal(fmt.Errorf("Could not create log file: %w", err))
 	}
 	for e := range daemon.Events() {
 		switch e := e.(type) {
 		case daemon.EventErr:
-			fmt.Fprintln(logfile, time.Now(), e)
+			fmt.Fprintln(logfile, time.Now(), "ERROR:", e)
 		case daemon.EventInfo:
 			fmt.Fprintln(logfile, time.Now(), e)
 		}

@@ -77,6 +77,7 @@ func playerManager(cmdCh <-chan Command, events chan<- Event) {
 			var t Track = cmd.track
 			if t.StreamingURL == "" {
 				events <- fmt.Errorf("Trying to play but streaming url is empty for %v\n", t)
+				continue
 			}
 			events <- fmt.Sprintf("[INFO] Getting response body for track %v\n", t)
 			resp, err := http.Get(t.StreamingURL)

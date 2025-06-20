@@ -71,14 +71,14 @@ func (r *Reader) decode(pw *io.PipeWriter, webmReader *webm.Reader, decodeBuffer
 			continue
 		}
 		if err != nil {
-			Events() <- err
+			events <- err
 			pw.CloseWithError(err)
 		}
 
 		// Convert float32 samples to bytes and write to the pipe
 		err = binary.Write(pw, binary.LittleEndian, decodeBuffer[:nSamples*int(track.Channels)])
 		if err != nil {
-			Events() <- err
+			events <- err
 			pw.CloseWithError(err)
 		}
 	}

@@ -71,7 +71,7 @@ func RenderOptions() string {
 }
 func Playlist() PlaylistModel {
 	var rows []components.ListEntry
-	for _, p := range daemon.RegisteredPlaylists() {
+	for _, p := range daemon.GetRegisteredPlaylists() {
 		var r components.ListEntry
 		r.Name = p.Title
 		r.Desc = p.Channel
@@ -115,8 +115,8 @@ func (m PlaylistModel) Update(msg tea.Msg) (PlaylistModel, tea.Cmd) {
 			} else {
 				opt := PlaylistMenu.Options[PlaylistMenu.selectedOption]
 				if opt == "Play" {
-					daemon.PlayTrack(&PlaylistMenu.selectedPlaylist.Tracks[0])
 					m.showingMenu = false
+					daemon.PlayTrack(&PlaylistMenu.selectedPlaylist.Tracks[0])
 				}
 			}
 			return m, nil

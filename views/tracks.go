@@ -44,7 +44,7 @@ func (m *TracksModel) Update(msg tea.Msg) tea.Cmd {
 				if !ok {
 					panic("assert: custom data of Track was not found")
 				}
-				go daemon.PlayTrack(SelectedTrack)
+				daemon.PlayTrack(SelectedTrack)
 			}
 		}
 	}

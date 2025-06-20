@@ -1,44 +1,14 @@
 package daemon
 
 import (
-	"context"
-	"sync"
+	"log"
 	"ytt/YoutubeDaemon/yt"
 
 	"github.com/ebitengine/oto/v3"
 )
 
 var (
-	mu     sync.Mutex
 	otoCtx *oto.Context
-)
-
-var Player = struct {
-	plr     *oto.Player
-	queue   []Track
-	shuffle bool
-	repeat  RepeatMode
-	Events  chan Event
-	close   context.CancelFunc
-}{
-	Events: make(chan Event, 100),
-	queue:  make([]Track, 0),
-}
-
-type PlayerState string
-
-// Repeat modes
-type RepeatMode int
-
-const (
-	RepeatOff RepeatMode = iota
-	RepeatOne
-	RepeatAll
-)
-const (
-	StateStopped PlayerState = "stopped"
-	StatePlaying PlayerState = "playing"
-	StatePaused  PlayerState = "paused"
 )
 
 // A playlist is just an ordered slice of Tracks
@@ -51,9 +21,17 @@ type Track struct {
 	StreamingURL string
 }
 
-type Event = any
+func init() {
+	op := oto.NewContextOptions{
+		SampleRate:   48000,
+		ChannelCount: 2,
+		Format:       oto.FormatFloat32LE,
+	}
 
-type EventTrackStarted Track
-type EventPlaylistStarted Playlist
-type EventPlaylistRegistered Playlist
-type EventErr = error
+	ctx, ready, err := oto.NewContext(&op)
+	if err != nil {
+		log.Fatal("could not initialize audio", err)
+	}
+	<-ready
+	otoCtx=ctx
+}

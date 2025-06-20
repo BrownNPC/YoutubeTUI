@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 	daemon "ytt/YoutubeDaemon"
-	"ytt/YoutubeDaemon/yt"
 	"ytt/cli"
 	"ytt/themes"
 
@@ -13,10 +13,16 @@ import (
 )
 
 func ErrorWriter() {
+	logfile, err := os.OpenFile("log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		panic(fmt.Errorf("Coult not create log file %w", err))
+	}
 	for e := range daemon.Events() {
 		switch e := e.(type) {
 		case daemon.EventErr:
-			panic(e)
+			fmt.Fprintln(logfile, time.Now(), e)
+		case daemon.EventInfo:
+			fmt.Fprintln(logfile, time.Now(), e)
 		}
 	}
 }
@@ -32,8 +38,8 @@ func main() {
 	for _, id := range cli.Config.Playlists {
 		ids = append(ids, id)
 	}
-	<-yt.Ready
-	daemon.AddPlaylists(ids...)
+	daemon.InitDaemon()
+	daemon.RegisterPlaylists(ids...)
 	themes.Wait()
 	go ErrorWriter()
 	themes.Activate(cli.Config.ThemeName)

@@ -16,20 +16,23 @@ import (
 func Model() tea.Model {
 
 	return model{
-		view:            views.ViewPlaylists,
+		view:            views.ViewPlaylists, // which view is active by default
 		playlistView:    views.Playlist(),
 		changeThemeView: views.ChangeTheme(),
-		menuOpened:      true,
-		openAtCenter:    true,
+		tracksView:      views.TracksModel{},
+
+		menuOpened:   true,
+		openAtCenter: true,
 	}
 }
 
 type model struct {
 	playlistView    views.PlaylistModel
 	changeThemeView views.ChangeThemeModel
+	tracksView      views.TracksModel
 
 	width, height    int
-	view             views.ViewMsg
+	view             views.ViewMsg // active view
 	menuOpened       bool
 	openAtCenter     bool
 	openatX, openatY int
@@ -48,9 +51,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		menu.Update(msg)
-		m.playlistView, cmd = m.playlistView.Update(msg)
-		cmd = views.ActiveTracksModel.Update(msg)
-		m.changeThemeView, cmd = m.changeThemeView.Update(msg)
+		m.playlistView, _ = m.playlistView.Update(msg)
+		m.tracksView, _ = m.tracksView.Update(msg)
+		m.changeThemeView, _ = m.changeThemeView.Update(msg)
 
 	case TickMsg:
 		return m, CmdTick
@@ -66,7 +69,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.menuOpened = false
 			}
 		}
-		// Playlists view has to close the playlist click menu [views.PlaylistMenu]
+		// Playlists and Tracks views have to close the playlist click menu [views.PlaylistMenu]
 		m.updateViews(msg)
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -83,6 +86,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.view = msg
 		m.menuOpened = false
 		return m, cmd
+	case views.ReinitTracksModelMsg:
+		m.tracksView = views.NewTracksModel(msg.Playlist)
+		m.tracksView, _ = m.tracksView.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+		m.view = views.ViewTracks
+		m.menuOpened = false
 	}
 	if !m.menuOpened {
 		cmd = m.updateViews(msg)
@@ -97,7 +105,7 @@ func (m *model) updateViews(msg tea.Msg) (cmd tea.Cmd) {
 	case views.ViewPlaylists:
 		m.playlistView, cmd = m.playlistView.Update(msg)
 	case views.ViewTracks:
-		cmd = views.ActiveTracksModel.Update(msg)
+		m.tracksView, cmd = m.tracksView.Update(msg)
 	case views.ViewChangeTheme:
 		m.changeThemeView, cmd = m.changeThemeView.Update(msg)
 	}
@@ -112,9 +120,7 @@ func (m model) visibleView() string {
 	case views.ViewChangeTheme:
 		content = m.changeThemeView.View()
 	case views.ViewTracks:
-		views.ActiveTracksModel.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
-		content = views.ActiveTracksModel.View()
-
+		content = m.tracksView.View()
 	}
 	return content
 }

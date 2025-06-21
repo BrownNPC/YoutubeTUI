@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"slices"
 	"sync"
+	"time"
 	"ytt/YoutubeDaemon/yt"
 
 	"github.com/ebitengine/oto/v3"
@@ -14,12 +15,12 @@ import (
 type Event any
 
 type EventTrackStarted Track
-type EventPlaylistStarted Playlist
 type EventErr = error
 type EventInfo = string
 
 type Command any
 type CmdStop struct{}
+type CmdPlayNextTrack struct{}
 type CmdFetchStreamURL struct{ *Track }
 type CmdPlayTrack struct{ *Track }
 type CmdSetQueue struct{ Tracks []*Track }
@@ -28,6 +29,7 @@ type CmdStartQueue struct{}               // start playing queue
 type CmdSetQueuePosition struct{ *Track } // set queue to start from here
 type CmdRegisterPlaylists struct{ playlistIDs []string }
 type CmdGetRegisteredPlaylists struct{ playlists chan<- []Playlist }
+type CmdGetCurrentTrackDuration struct{ duration chan<- time.Duration }
 
 var cmdCh chan Command
 var events chan Event
@@ -49,8 +51,9 @@ func playerManager(cmdCh <-chan Command, events chan<- Event) {
 
 		playlists = []Playlist{} // registered playlists
 
-		queue        = []*Track{} // []Track from within a playlist
-		queueIndex   int
+		queue      = []*Track{} // []Track from within a playlist
+		queueIndex int
+
 		trackPlaying *Track
 	)
 
@@ -70,13 +73,13 @@ func playerManager(cmdCh <-chan Command, events chan<- Event) {
 				trackPlaying = queue[queueIndex]
 			} else {
 				events <- fmt.Errorf("Queue too small to play %d", len(queue))
+				return
 			}
-			go PlayTrack(trackPlaying)
 			events <- fmt.Sprintf("[INFO] playing track %d: %s from queue", queueIndex, trackPlaying.Title)
+			// TODO: Take cancelable context and pass it
+			go PlayTrack(trackPlaying)
 			queueIndex++
 			queueIndex %= len(queue)
-		case CmdGetQueue:
-			cmd.queue <- queue
 		case CmdSetQueuePosition:
 			i := slices.Index(queue, cmd.Track)
 			if i != -1 {
@@ -117,6 +120,8 @@ func playerManager(cmdCh <-chan Command, events chan<- Event) {
 			player = otoCtx.NewPlayer(reader)
 			player.Play()
 			events <- fmt.Sprintf("[INFO] player is playing %s\n", t.Title)
+			events <- EventTrackStarted(*t)
+			trackPlaying = t
 			if cleanup != nil {
 				panic("assert: cleanup should be nil before playing track")
 			}
@@ -125,8 +130,6 @@ func playerManager(cmdCh <-chan Command, events chan<- Event) {
 				f.Close()
 				reader.Close()
 			}
-		case CmdGetRegisteredPlaylists:
-			cmd.playlists <- playlists
 		case CmdRegisterPlaylists:
 			added := make(chan Playlist, 100)
 			semaphore := make(chan struct{}, 3) //limit to 3 playlists being fetched
@@ -141,7 +144,9 @@ func playerManager(cmdCh <-chan Command, events chan<- Event) {
 					list, err := yt.GetPlaylist(id)
 					if err != nil {
 						err = fmt.Errorf("fetching playlist %s: %w", id, err)
-						events <- err
+						if err != nil {
+							events <- err
+						}
 						return
 					}
 					events <- err
@@ -157,6 +162,13 @@ func playerManager(cmdCh <-chan Command, events chan<- Event) {
 			for p := range added {
 				playlists = append(playlists, p)
 			}
+		case CmdGetQueue:
+			cmd.queue <- queue
+		case CmdGetRegisteredPlaylists:
+			cmd.playlists <- playlists
+		case CmdGetCurrentTrackDuration:
+			cmd.duration <- time.Second *
+				time.Duration(trackPlaying.DurationSeconds)
 		}
 	}
 }

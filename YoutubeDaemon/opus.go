@@ -65,7 +65,7 @@ func (r *Reader) decode(pw *io.PipeWriter, webmReader *webm.Reader, decodeBuffer
 			break
 		}
 		r.Progress = packet.Timecode
-
+		events <- fmt.Sprintln(packet.Timecode.Seconds())
 		nSamples, err := decoder.DecodeFloat32(packet.Data, decodeBuffer)
 		if nSamples == 0 { //important or audio will stop playing on seek
 			continue

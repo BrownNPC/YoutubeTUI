@@ -48,12 +48,11 @@ type List struct {
 
 // track inside playlist or search results list
 type Entry struct {
-	ID             string `json:"id"`
-	VideoURL       string `json:"url"`
-	Title          string `json:"title"`
-	Duration       int    `json:"duration"`
-	DurationString string `json:"duration_string"`
-	ChannelURL     string `json:"channel_url"`
-	Uploader       string `json:"uploader"`
-	ViewCount      int    `json:"view_count"`
+	ID              string `json:"id"`
+	VideoURL        string `json:"url"`
+	Title           string `json:"title"`
+	DurationSeconds int    `json:"duration"`
+	ChannelURL      string `json:"channel_url"`
+	Uploader        string `json:"uploader"`
+	ViewCount       int    `json:"view_count"`
 }
